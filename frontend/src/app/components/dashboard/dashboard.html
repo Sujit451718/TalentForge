@@ -1,0 +1,49 @@
+<div class="dashboard-container" *ngIf="!loading">
+  <header class="dashboard-header">
+    <h1>Welcome back, <span class="text-gradient">{{stats.name}}</span></h1>
+    <p>Here's what's happening with your interview prep.</p>
+  </header>
+
+  <div class="stats-grid">
+    <div class="card stat-card">
+      <span class="stat-label">Total Interviews</span>
+      <h2 class="stat-value">{{stats.total_interviews}}</h2>
+    </div>
+    <div class="card stat-card">
+      <span class="stat-label">Average Score</span>
+      <h2 class="stat-value text-gradient">{{stats.average_score}}%</h2>
+    </div>
+    <div class="card stat-card">
+      <span class="stat-label">Current Plan</span>
+      <h2 class="stat-value" [style.color]="stats.plan_type === 'premium' ? '#a855f7' : '#94a3b8'">
+        {{stats.plan_type | titlecase}}
+      </h2>
+      <button *ngIf="stats.plan_type === 'free'" class="btn-upgrade" (click)="onUpgrade()">Upgrade Now</button>
+    </div>
+  </div>
+
+  <section class="premium-features" *ngIf="stats.plan_type === 'premium'">
+    <div class="card resume-card">
+      <div class="resume-info">
+        <h3>🚀 Resume Intelligence</h3>
+        <p>Upload your resume to get personalized interview questions based on your experience.</p>
+      </div>
+      <div class="resume-upload">
+        <input type="file" id="resume" (change)="onFileSelected($event)" accept=".pdf" hidden #fileInput>
+        <button class="btn-primary" (click)="fileInput.click()">Upload Resume (PDF)</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="quick-actions">
+    <div class="card action-card">
+      <h3>Ready for a new challenge?</h3>
+      <p>Start a simulated interview tailored to your target role.</p>
+      <button class="btn-primary" routerLink="/interview">Start New Interview</button>
+    </div>
+  </section>
+</div>
+
+<div class="loader" *ngIf="loading">
+  <p>Loading your dashboard...</p>
+</div>

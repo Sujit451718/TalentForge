@@ -1,0 +1,28 @@
+<div class="auth-container">
+  <div class="card auth-card">
+    <h2 class="text-gradient">Join TalentForge</h2>
+    <p>Start your AI-powered interview journey</p>
+    
+    <form (ngSubmit)="onSubmit()" #registerForm="ngForm">
+      <div class="error-message" *ngIf="errorMessage">{{errorMessage}}</div>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" name="name" [(ngModel)]="registerData.name" required placeholder="John Doe">
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" name="email" [(ngModel)]="registerData.email" required placeholder="john@example.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" [(ngModel)]="registerData.password" required placeholder="••••••••">
+      </div>
+      
+      <button type="submit" class="btn-primary w-full">Create Account</button>
+    </form>
+    
+    <p class="auth-footer">
+      Already have an account? <a routerLink="/login">Login</a>
+    </p>
+  </div>
+</div>

@@ -1,0 +1,39 @@
+<div class="interview-container">
+  <div class="card interview-card" *ngIf="!loading">
+    <div class="interview-header">
+      <div class="timer" [class.warning]="timeLeft < 10">
+        <span class="timer-icon">⏱</span>
+        <span class="timer-text">{{timeLeft}}s</span>
+      </div>
+      <div class="progress-info">
+        <span>Question 1 of 1</span>
+      </div>
+    </div>
+
+    <div class="question-section">
+      <div class="ai-context" *ngIf="questionContext">
+        <span class="ai-label">AI Context:</span> {{questionContext}}
+      </div>
+      <h2 class="question-text">{{currentQuestion}}</h2>
+    </div>
+
+    <div class="answer-section">
+      <textarea 
+        [(ngModel)]="answer" 
+        placeholder="Type your answer here..." 
+        [disabled]="submitting"
+        class="answer-input">
+      </textarea>
+    </div>
+
+    <div class="interview-footer">
+      <button class="btn-primary" (click)="onSubmit()" [disabled]="submitting || !answer.trim()">
+        {{submitting ? 'Submitting...' : 'Submit Answer'}}
+      </button>
+    </div>
+  </div>
+
+  <div class="loader" *ngIf="loading">
+    <p>Preparing your interview...</p>
+  </div>
+</div>

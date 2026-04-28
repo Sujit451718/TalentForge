@@ -1,0 +1,48 @@
+<div class="feedback-container" *ngIf="!loading && feedbackData">
+  <header class="feedback-header card">
+    <div class="header-main">
+      <h1>Interview Result: <span class="text-gradient">{{feedbackData.role}}</span></h1>
+      <p>Conducted on {{feedbackData.date | date:'medium'}}</p>
+    </div>
+    <div class="score-badge">
+      <span class="score-label">Overall Score</span>
+      <span class="score-value text-gradient">{{feedbackData.total_score}}%</span>
+    </div>
+  </header>
+
+  <section class="questions-feedback">
+    <div class="card q-card" *ngFor="let q of feedbackData.questions">
+      <div class="q-header">
+        <h3>{{q.question}}</h3>
+        <span class="q-score" [class.low]="q.score < 50" [class.high]="q.score >= 80">
+          Score: {{q.score}}%
+        </span>
+      </div>
+      
+      <div class="q-body">
+        <div class="section">
+          <h4>Your Answer:</h4>
+          <p class="answer-text">{{q.answer || 'No answer provided.'}}</p>
+        </div>
+        
+        <div class="section feedback-section">
+          <h4>AI Feedback:</h4>
+          <p>{{q.feedback}}</p>
+        </div>
+
+        <div class="section suggestions-section">
+          <h4>Suggestions for Improvement:</h4>
+          <p>{{q.suggestions}}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="feedback-footer">
+    <button class="btn-primary" routerLink="/dashboard">Return to Dashboard</button>
+  </footer>
+</div>
+
+<div class="loader" *ngIf="loading">
+  <p>Analyzing your results...</p>
+</div>
