@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: talentforge-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn "app:create_app()"
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: DB_NAME
+        value: ai_interview_simulator
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://talentfroge.vercel.app
+      - key: JWT_EXPIRATION_HOURS
+        value: "24"
+      - key: FREE_DAILY_LIMIT
+        value: "2"
+      - key: ENABLE_LOCAL_DEMO_DB
+        value: "false"
