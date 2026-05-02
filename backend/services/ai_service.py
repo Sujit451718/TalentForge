@@ -219,62 +219,41 @@ def chatbot_reply(message):
 
 
 def generate_quiz_questions(topic="software engineering", count=10):
-    emergency_quiz = [
-        {
-            "question": f"Which of the following is a core concept in {topic}?",
-            "options": ["Abstraction", "Manual Labor", "Random Guessing", "None of these"],
-            "answer_index": 0,
-        },
-        {
-            "question": f"What is the primary goal of professional work in {topic}?",
-            "options": ["Reducing efficiency", "Solving complex problems", "Increasing bugs", "Ignoring requirements"],
-            "answer_index": 1,
-        },
-        {
-            "question": f"In the context of {topic}, what does 'scalability' typically refer to?",
-            "options": ["The ability to handle growth", "The color of the UI", "The speed of typing", "The number of meetings"],
-            "answer_index": 0,
-        },
-        {
-            "question": f"Which approach is generally preferred in {topic} for long-term maintenance?",
-            "options": ["Hardcoding values", "Modular design", "Deleting documentation", "Ignoring errors"],
-            "answer_index": 1,
-        },
-        {
-            "question": f"What is a 'bottleneck' in a {topic} workflow?",
-            "options": ["A decorative item", "A point of congestion", "A fast process", "A type of variable"],
-            "answer_index": 1,
-        },
-        {
-            "question": f"Why is 'testing' critical in {topic}?",
-            "options": ["To slow down deployment", "To ensure reliability", "To fill up storage", "To confuse developers"],
-            "answer_index": 1,
-        },
-        {
-            "question": f"Which of these is a common 'tradeoff' considered in {topic}?",
-            "options": ["Speed vs Accuracy", "Day vs Night", "Coffee vs Tea", "Windows vs Linux"],
-            "answer_index": 0,
-        },
-        {
-            "question": f"What does 'version control' allow teams to do in {topic}?",
-            "options": ["Track changes over time", "Block internet access", "Delete all code", "Increase hardware cost"],
-            "answer_index": 0,
-        },
-        {
-            "question": f"In {topic}, what is meant by 'technical debt'?",
-            "options": ["Bank loans", "Future cost of quick fixes", "Salary of engineers", "Hardware upgrades"],
-            "answer_index": 1,
-        },
-        {
-            "question": f"What is the benefit of 'code reviews' in {topic}?",
-            "options": ["Sharing knowledge and quality", "Personal criticism", "Increasing work hours", "Avoiding deployment"],
-            "answer_index": 0,
-        }
-    ]
-
     model = get_llm_model() if get_llm_model else None
+    
+    # Define a slightly better fallback that at least mentions the topic
+    def get_fallback():
+        print(f"Falling back to emergency quiz for topic: {topic}")
+        return [
+            {
+                "question": f"Which of the following is a fundamental concept in {topic}?",
+                "options": ["Core Principles", "Manual Processes", "Random Guessing", "None of these"],
+                "answer_index": 0,
+            },
+            {
+                "question": f"What is a primary goal when working within the {topic} domain?",
+                "options": ["Efficiency and Quality", "Increasing complexity", "Avoiding documentation", "Ignoring requirements"],
+                "answer_index": 0,
+            },
+            {
+                "question": f"In {topic}, what does 'scalability' generally refer to?",
+                "options": ["Handling growth effectively", "Visual appearance", "The number of files", "Developer preference"],
+                "answer_index": 0,
+            },
+            {
+                "question": f"Why is 'validation' important in {topic}?",
+                "options": ["To ensure correctness", "To waste time", "To increase costs", "To confuse users"],
+                "answer_index": 0,
+            },
+            {
+                "question": f"What is a 'bottleneck' in the context of {topic}?",
+                "options": ["A performance constraint", "A decorative feature", "A fast pathway", "A type of variable"],
+                "answer_index": 0,
+            }
+        ]
+
     if not model:
-        return emergency_quiz
+        return get_fallback()
 
     prompt = f"""
     You are an expert technical examiner. Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions on the topic of '{topic}'.
@@ -298,13 +277,14 @@ def generate_quiz_questions(topic="software engineering", count=10):
     Rules:
     - Exactly 4 options per question
     - answer_index must be between 0 and 3
-    - No markdown formatting like ```json, no extra commentary
+    - Return ONLY the JSON array, no markdown or commentary.
     """
     try:
         response = model.generate_content(prompt)
         text = response.text.strip()
         import json
         
+        # Robust JSON extraction
         if "```" in text:
             text = text.split("```")[1]
             if text.startswith("json"):
@@ -318,7 +298,7 @@ def generate_quiz_questions(topic="software engineering", count=10):
         else:
             clean_text = text
             
-        items = json.loads(clean_text)
+        items = json.loads(clean_text.strip())
         cleaned = []
         for item in items:
             options = item.get("options", [])[:4]
@@ -336,9 +316,9 @@ def generate_quiz_questions(topic="software engineering", count=10):
             })
         
         if not cleaned:
-            return emergency_quiz
+            return get_fallback()
             
         return cleaned[:count]
     except Exception as e:
         print(f"Quiz Generation Error: {e}")
-        return emergency_quiz
+        return get_fallback()

@@ -273,6 +273,11 @@ def generate_quiz(current_user_id):
     topic = data.get("topic", "software engineering")
     count = int(data.get("count", 10) or 10)
     count = max(10, min(count, 20))
+    
+    # Check if we have an API key configured
+    api_key = os.getenv("GOOGLE_API_KEY")
+    is_fallback = not api_key or api_key == "your_gemini_api_key_here"
+    
     questions = generate_quiz_questions(topic, count)
     quiz_id = str(datetime.datetime.utcnow().timestamp()).replace(".", "")
     payload = []
@@ -284,13 +289,23 @@ def generate_quiz(current_user_id):
             
         payload.append(
             {
-                "id": f"q-{index}", # Simpler stable ID
+                "id": f"q-{index}", 
                 "question": item.get("question"),
                 "options": item.get("options", [])[:4],
                 "answer_index": ans_idx,
             }
         )
-    return format_response({"quiz_id": quiz_id, "topic": topic, "questions": payload}, "Quiz generated")
+    
+    message = "Quiz generated successfully."
+    if is_fallback:
+        message = "Quiz generated with generic fallback. Please configure GOOGLE_API_KEY for domain-specific questions."
+        
+    return format_response({
+        "quiz_id": quiz_id, 
+        "topic": topic, 
+        "questions": payload,
+        "is_ai_generated": not is_fallback
+    }, message)
 
 
 @interview_bp.route('/quiz/submit', methods=['POST'])

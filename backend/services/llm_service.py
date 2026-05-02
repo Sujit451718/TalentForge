@@ -5,16 +5,22 @@ from flask import current_app
 def get_llm_model():
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key or api_key == "your_gemini_api_key_here":
+        print("Warning: GOOGLE_API_KEY is missing or placeholder. LLM features will be disabled.")
         return None
     
-    genai.configure(api_key=api_key)
-    print("Initializing Gemini Model: gemini-flash-latest")
-    return genai.GenerativeModel('gemini-flash-latest')
+    try:
+        genai.configure(api_key=api_key)
+        # Use gemini-1.5-flash for better performance and reliability
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        return model
+    except Exception as e:
+        print(f"Error initializing Gemini Model: {e}")
+        return None
 
 def get_ai_evaluation(question, answer):
     model = get_llm_model()
     if not model:
-        return None # Fallback to keyword matching
+        return None 
     
     prompt = f"""
     You are an expert technical interviewer. Evaluate the following interview answer:
@@ -22,28 +28,42 @@ def get_ai_evaluation(question, answer):
     Question: {question}
     User Answer: {answer}
     
-    Provide your evaluation in the following JSON format:
+    Provide your evaluation in the following strict JSON format:
     {{
         "score": (integer between 0 and 100),
         "feedback": "A concise assessment of the answer",
         "strengths": ["list", "of", "strengths", "in", "the", "answer"],
         "weaknesses": ["list", "of", "weaknesses", "or", "missing", "points"],
         "suggested_answer": "An ideal suggested answer incorporating the missing points",
-        "jarvis_response": "A short, conversational and encouraging reply from the interviewer addressing the user's answer directly (1-2 sentences)"
+        "jarvis_response": "A short, conversational and encouraging reply addressing the user directly (1-2 sentences)"
     }}
+    
+    Rules:
+    - Return ONLY the JSON object.
+    - No markdown formatting.
     """
     
     try:
         response = model.generate_content(prompt)
-        # In a production app, use a more robust JSON parser
-        import json
-        text = response.text
-        # Extract JSON from response if there's markdown
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0]
-        return json.loads(text.strip())
+        text = response.text.strip()
+        
+        # Robust JSON extraction
+        if "```" in text:
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.split("```")[0]
+            
+        start_idx = text.find('{')
+        end_idx = text.rfind('}')
+        if start_idx != -1 and end_idx != -1:
+            clean_text = text[start_idx:end_idx+1]
+        else:
+            clean_text = text
+            
+        return json.loads(clean_text.strip())
     except Exception as e:
-        print(f"Error calling Gemini API: {e}")
+        print(f"Error calling Gemini API for evaluation: {e}")
         return None
 
 def generate_questions_from_resume(resume_text):

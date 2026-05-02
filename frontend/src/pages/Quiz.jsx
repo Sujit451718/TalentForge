@@ -210,6 +210,13 @@ export default function Quiz() {
       if (!data.questions || data.questions.length === 0) {
         throw new Error("The AI failed to generate questions for this topic. Please try a different topic or check your internet connection.");
       }
+      
+      if (data.is_ai_generated === false) {
+        setNotice("Note: Using generic fallback questions. Configure GOOGLE_API_KEY for domain-specific AI questions.");
+      } else {
+        setNotice(""); // Clear any previous notice
+      }
+
       setQuiz({ ...data, originalTopic: actualTopic });
       setGameState('playing');
     } catch (err) {
@@ -351,6 +358,11 @@ export default function Quiz() {
   const renderLobby = () => (
     <div className="grid gap-6 lg:grid-cols-[1fr_350px]">
       <section className="space-y-6">
+        {notice && (
+          <div className="bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-xl text-cyan-200 text-sm animate-pulse">
+            {notice}
+          </div>
+        )}
         <div className="glass-panel p-8 relative overflow-hidden group">
           <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-pink-500/10 blur-3xl transition-all group-hover:bg-pink-500/20" />
           <h2 className="text-3xl font-black text-white mb-2 text-glow">Battle Setup</h2>
