@@ -219,21 +219,22 @@ def chatbot_reply(message):
 
 
 def generate_quiz_questions(topic="software engineering", count=10):
+    emergency_quiz = [
+        {
+            "question": f"Which of the following is a core concept in {topic}?",
+            "options": ["Abstraction", "Manual Labor", "Random Guessing", "None of these"],
+            "answer_index": 0,
+        },
+        {
+            "question": f"What is the primary goal of professional work in {topic}?",
+            "options": ["Reducing efficiency", "Solving complex problems", "Increasing bugs", "Ignoring requirements"],
+            "answer_index": 1,
+        }
+    ]
+
     model = get_llm_model() if get_llm_model else None
     if not model:
-        # Emergency hardcoded fallback
-        return [
-            {
-                "question": "Which React hook is used to manage local component state?",
-                "options": ["useEffect", "useState", "useMemo", "useRef"],
-                "answer_index": 1,
-            },
-            {
-                "question": "What is the purpose of JWT in web applications?",
-                "options": ["Image compression", "Authentication token", "Database backup", "Code linting"],
-                "answer_index": 1,
-            }
-        ]
+        return emergency_quiz
 
     prompt = f"""
     You are an expert technical examiner. Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions on the topic of '{topic}'.
@@ -293,7 +294,11 @@ def generate_quiz_questions(topic="software engineering", count=10):
                 "options": options,
                 "answer_index": answer_index,
             })
+        
+        if not cleaned:
+            return emergency_quiz
+            
         return cleaned[:count]
     except Exception as e:
         print(f"Quiz Generation Error: {e}")
-        return []
+        return emergency_quiz

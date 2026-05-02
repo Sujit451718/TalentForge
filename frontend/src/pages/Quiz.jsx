@@ -206,7 +206,11 @@ export default function Quiz() {
       const promptTopic = `${actualTopic} (Difficulty: ${difficulty})`;
       
       const response = await interviewApi.quizGenerate({ topic: promptTopic, count: 10 });
-      setQuiz({ ...response.data.data, originalTopic: actualTopic });
+      const data = response.data.data;
+      if (!data.questions || data.questions.length === 0) {
+        throw new Error("The AI failed to generate questions for this topic. Please try a different topic or check your internet connection.");
+      }
+      setQuiz({ ...data, originalTopic: actualTopic });
       setGameState('playing');
     } catch (err) {
       setError(getApiError(err));
