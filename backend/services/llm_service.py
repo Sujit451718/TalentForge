@@ -1,5 +1,6 @@
 import google.generativeai as genai
 import os
+import json
 from flask import current_app
 
 def get_llm_model():

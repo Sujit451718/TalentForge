@@ -1,5 +1,7 @@
 import re
 import random
+import json
+import uuid
 from collections import Counter
 
 try:
@@ -71,8 +73,6 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
     ]
 
     if model:
-        import uuid
-        import json
         prompt = f"""
         You are an elite technical interviewer. Generate {limit} highly unique, challenging, and STRICTLY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
         
@@ -282,7 +282,6 @@ def generate_quiz_questions(topic="software engineering", count=10):
     try:
         response = model.generate_content(prompt)
         text = response.text.strip()
-        import json
         
         # Robust JSON extraction
         if "```" in text:
