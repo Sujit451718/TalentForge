@@ -135,7 +135,7 @@ def upload_resume(current_user_id):
             {"_id": user_id},
             {"$set": {
                 "resume_questions": questions,
-                "resume_text_preview": text[:1000],
+                "resume_text_preview": text[:2000],
                 "resume_uploaded_at": datetime.datetime.utcnow()
             }}
         )
