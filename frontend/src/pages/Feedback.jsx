@@ -239,6 +239,17 @@ export default function Feedback() {
                     </ul>
                   </div>
                 </div>
+
+                {item.jarvis_response && (
+                  <div className="mb-6 border border-cyan-500/20 bg-cyan-500/5 p-6 rounded-2xl">
+                    <p className="label mb-4 text-cyan-300 flex items-center gap-2">
+                       <BrainCircuit className="w-4 h-4" /> Jarvis Feedback
+                    </p>
+                    <p className="text-sm font-medium text-slate-300 italic">
+                      "{item.jarvis_response}"
+                    </p>
+                  </div>
+                )}
                 
                 <div className="mt-6 border border-violet-500/20 bg-violet-500/5 p-8 rounded-2xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-6 opacity-10">

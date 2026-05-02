@@ -480,6 +480,18 @@ export default function Quiz() {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            {/* Quit Button */}
+            <button 
+              className="ghost-button !p-2 !rounded-lg text-pink-400 border-pink-500/30 hover:bg-pink-500/10 mr-2" 
+              onClick={() => {
+                if (window.confirm("Are you sure you want to quit the exam? Your progress will not be saved.")) {
+                  setGameState('lobby');
+                }
+              }}
+              title="Quit Exam"
+            >
+              <CircleX className="h-5 w-5" />
+            </button>
             {/* Power-ups */}
             <button className={`powerup-btn !p-2 !rounded-lg ${activePowerup === 'doubleScore' ? 'powerup-active' : ''}`} onClick={useDoubleScore} disabled={powerups.doubleScore <= 0 || activePowerup}>
               <Star className="h-5 w-5 text-yellow-400" />

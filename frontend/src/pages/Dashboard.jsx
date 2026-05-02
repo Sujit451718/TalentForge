@@ -86,7 +86,7 @@ export default function Dashboard() {
     { id: 5, name: 'BugSquasher', score: 7200, rank: 'Silver', avatar: 'S' },
   ];
   
-  const displayLeaderboard = leaderboard.length > 0 ? leaderboard : MOCK_LEADERBOARD;
+  const displayLeaderboard = leaderboard.length > 0 ? leaderboard : [];
 
   const quizHistory = stats?.quiz_history || [];
   
@@ -105,7 +105,7 @@ export default function Dashboard() {
   let derivedAccuracyData = quizHistory.slice().reverse().map((q, idx) => ({
     name: `Q${idx + 1}`,
     accuracy: q.score || 0,
-    average: q.ai_avg_score || 50
+    average: q.ai_avg_score || 0
   }));
 
   let wins = quizHistory.filter(q => (q.score || 0) >= 50).length;
@@ -115,17 +115,11 @@ export default function Dashboard() {
     { name: 'Losses', value: losses, color: '#f43f5e' },
   ];
   
-  const finalTopicData = derivedTopicData.length > 0 ? derivedTopicData : [
-    { name: 'React', score: 92 }, { name: 'Python', score: 85 }, { name: 'System Design', score: 65 }, { name: 'DSA', score: 78 }, { name: 'Databases', score: 88 }
-  ];
-  const finalAccuracyData = derivedAccuracyData.length > 0 ? derivedAccuracyData : [
-    { name: 'Mon', accuracy: 65, average: 50 }, { name: 'Tue', accuracy: 72, average: 52 }, { name: 'Wed', accuracy: 68, average: 51 }, { name: 'Thu', accuracy: 85, average: 54 }, { name: 'Fri', accuracy: 82, average: 55 }, { name: 'Sat', accuracy: 94, average: 58 }, { name: 'Sun', accuracy: 96, average: 60 }
-  ];
-  const finalWinLossData = quizHistory.length > 0 ? derivedWinLossData : [
-    { name: 'Wins', value: 34, color: '#10b981' }, { name: 'Losses', value: 12, color: '#f43f5e' }
-  ];
-  const totalWins = quizHistory.length > 0 ? wins : 34;
-  const totalLosses = quizHistory.length > 0 ? losses : 12;
+  const finalTopicData = derivedTopicData;
+  const finalAccuracyData = derivedAccuracyData;
+  const finalWinLossData = derivedWinLossData;
+  const totalWins = wins;
+  const totalLosses = losses;
   const winRate = totalWins + totalLosses > 0 ? Math.round((totalWins/(totalWins+totalLosses))*100) : 0;
 
   const latestInterview = stats?.interview_history?.find(i => i.summary);

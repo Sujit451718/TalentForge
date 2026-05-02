@@ -51,6 +51,17 @@ export default function JarvisMode() {
     }
   }, [stream, gameState]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      if (recognition) recognition.stop();
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    };
+  }, [stream]);
+
   // Anti-Cheat: Tab switching
   useEffect(() => {
     const handleVisibility = () => {
