@@ -229,6 +229,46 @@ def generate_quiz_questions(topic="software engineering", count=10):
             "question": f"What is the primary goal of professional work in {topic}?",
             "options": ["Reducing efficiency", "Solving complex problems", "Increasing bugs", "Ignoring requirements"],
             "answer_index": 1,
+        },
+        {
+            "question": f"In the context of {topic}, what does 'scalability' typically refer to?",
+            "options": ["The ability to handle growth", "The color of the UI", "The speed of typing", "The number of meetings"],
+            "answer_index": 0,
+        },
+        {
+            "question": f"Which approach is generally preferred in {topic} for long-term maintenance?",
+            "options": ["Hardcoding values", "Modular design", "Deleting documentation", "Ignoring errors"],
+            "answer_index": 1,
+        },
+        {
+            "question": f"What is a 'bottleneck' in a {topic} workflow?",
+            "options": ["A decorative item", "A point of congestion", "A fast process", "A type of variable"],
+            "answer_index": 1,
+        },
+        {
+            "question": f"Why is 'testing' critical in {topic}?",
+            "options": ["To slow down deployment", "To ensure reliability", "To fill up storage", "To confuse developers"],
+            "answer_index": 1,
+        },
+        {
+            "question": f"Which of these is a common 'tradeoff' considered in {topic}?",
+            "options": ["Speed vs Accuracy", "Day vs Night", "Coffee vs Tea", "Windows vs Linux"],
+            "answer_index": 0,
+        },
+        {
+            "question": f"What does 'version control' allow teams to do in {topic}?",
+            "options": ["Track changes over time", "Block internet access", "Delete all code", "Increase hardware cost"],
+            "answer_index": 0,
+        },
+        {
+            "question": f"In {topic}, what is meant by 'technical debt'?",
+            "options": ["Bank loans", "Future cost of quick fixes", "Salary of engineers", "Hardware upgrades"],
+            "answer_index": 1,
+        },
+        {
+            "question": f"What is the benefit of 'code reviews' in {topic}?",
+            "options": ["Sharing knowledge and quality", "Personal criticism", "Increasing work hours", "Avoiding deployment"],
+            "answer_index": 0,
         }
     ]
 
