@@ -247,34 +247,44 @@ def generate_quiz_questions(topic="software engineering", count=10):
     clean_topic = topic.lower().strip()
     full_topic = topic_mapping.get(clean_topic, topic)
 
+    # Topic-specific styles to ensure the "format" is different for each domain
+    topic_styles = {
+        "Physics": "Focus on numerical problems, universal constants, experimental setups, and specific physical laws (e.g., Optics, Electromagnetism, Quantum Mechanics). Use a formal, scientific tone.",
+        "Data Science": "Focus on interpreting model metrics (Precision/Recall), statistical significance, data preprocessing steps, and algorithm selection for specific business problems. Use a professional, analytical tone.",
+        "Software Engineering": "Focus on design patterns, architectural tradeoffs, debugging complex system behaviors, and clean code principles. Include pseudocode logic where possible.",
+        "General Science": "Focus on fundamental biological processes, chemical reactions, periodic table properties, and notable scientific history/methodology."
+    }
+    
+    style_guide = topic_styles.get(full_topic, "Focus on deep technical concepts, practical application, and domain-specific terminology.")
+
     # Define a significantly better fallback that provides 10 questions and is domain-aware
     def get_fallback():
         print(f"Falling back to domain-aware quiz for topic: {full_topic}")
         
         physics_fallback = [
-            {"question": "What is the SI unit of Force?", "options": ["Joule", "Newton", "Watt", "Pascal"], "answer_index": 1},
-            {"question": "Which law states that for every action, there is an equal and opposite reaction?", "options": ["Newton's First Law", "Newton's Second Law", "Newton's Third Law", "Law of Gravitation"], "answer_index": 2},
-            {"question": "What is the acceleration due to gravity on Earth (approx)?", "options": ["5.8 m/s²", "9.8 m/s²", "12.4 m/s²", "3.2 m/s²"], "answer_index": 1},
-            {"question": "Which of these is a vector quantity?", "options": ["Mass", "Temperature", "Velocity", "Time"], "answer_index": 2},
-            {"question": "What is the speed of light in a vacuum?", "options": ["3 x 10⁸ m/s", "3 x 10⁶ m/s", "3 x 10¹⁰ m/s", "3 x 10⁵ m/s"], "answer_index": 0},
-            {"question": "Who proposed the Theory of General Relativity?", "options": ["Isaac Newton", "Albert Einstein", "Nikola Tesla", "Marie Curie"], "answer_index": 1},
-            {"question": "What is the primary particle involved in electric current in a wire?", "options": ["Proton", "Neutron", "Electron", "Positron"], "answer_index": 2},
-            {"question": "What does a barometer measure?", "options": ["Temperature", "Humidity", "Atmospheric Pressure", "Wind Speed"], "answer_index": 2},
-            {"question": "In thermodynamics, what is the absolute zero temperature in Celsius?", "options": ["0°C", "-100°C", "-273.15°C", "-373.15°C"], "answer_index": 2},
-            {"question": "What is the unit of electrical resistance?", "options": ["Volt", "Ampere", "Ohm", "Farad"], "answer_index": 2}
+            {"question": "Calculate the work done (W) when a force of 10N moves an object 5m in the direction of the force.", "options": ["50 Joules", "2 Joules", "15 Joules", "0.5 Joules"], "answer_index": 0},
+            {"question": "In a vacuum, if a hammer and a feather are dropped simultaneously, which reaches the ground first?", "options": ["The hammer", "The feather", "Both at the same time", "It depends on the height"], "answer_index": 2},
+            {"question": "Which constant represents the speed of light in vacuum?", "options": ["g", "c", "h", "G"], "answer_index": 1},
+            {"question": "What happens to the resistance of a conductor if its temperature increases?", "options": ["Increases", "Decreases", "Stays the same", "Becomes zero"], "answer_index": 0},
+            {"question": "What is the primary phenomenon responsible for the 'blue' appearance of the sky?", "options": ["Refraction", "Diffraction", "Rayleigh Scattering", "Total Internal Reflection"], "answer_index": 2},
+            {"question": "A 100W bulb is used for 10 hours. How much energy is consumed in kWh?", "options": ["1 kWh", "10 kWh", "0.1 kWh", "100 kWh"], "answer_index": 0},
+            {"question": "Which particle is responsible for carrying the electromagnetic force?", "options": ["Gluon", "W Boson", "Photon", "Graviton"], "answer_index": 2},
+            {"question": "What is the focal length of a plane mirror?", "options": ["Zero", "1 meter", "Infinity", "Depends on size"], "answer_index": 2},
+            {"question": "In the equation E=mc², what does 'm' represent?", "options": ["Momentum", "Mass", "Motion", "Magnetic field"], "answer_index": 1},
+            {"question": "What is the unit of magnetic flux density?", "options": ["Weber", "Tesla", "Henry", "Farad"], "answer_index": 1}
         ]
 
         ds_fallback = [
-            {"question": "What is the most common language used for Data Science?", "options": ["Java", "C++", "Python", "PHP"], "answer_index": 2},
-            {"question": "Which algorithm is used for classification?", "options": ["K-Means", "Linear Regression", "Random Forest", "Apriori"], "answer_index": 2},
-            {"question": "What does 'EDA' stand for in Data Science?", "options": ["Effective Data Analysis", "Exploratory Data Analysis", "Estimated Data Amount", "Extended Data Array"], "answer_index": 1},
-            {"question": "Which library is primarily used for data manipulation in Python?", "options": ["NumPy", "Matplotlib", "Pandas", "Scikit-Learn"], "answer_index": 2},
-            {"question": "What is 'overfitting' in Machine Learning?", "options": ["Model performs well on test data only", "Model performs well on training data only", "Model is too simple", "Model has no parameters"], "answer_index": 1},
-            {"question": "What is a p-value in statistics?", "options": ["The probability of the null hypothesis being true", "The probability of observing the result by chance", "The power of the test", "The effect size"], "answer_index": 1},
-            {"question": "Which of these is a supervised learning task?", "options": ["Clustering", "Regression", "Dimensionality Reduction", "Association Rule Mining"], "answer_index": 1},
-            {"question": "What is the purpose of a confusion matrix?", "options": ["To visualize data", "To evaluate classification performance", "To clean data", "To train a model"], "answer_index": 1},
-            {"question": "In SQL, which command is used to remove duplicates from a result set?", "options": ["UNIQUE", "DISTINCT", "ONLY", "SINGLE"], "answer_index": 1},
-            {"question": "What does 'NLP' stand for?", "options": ["Natural Language Processing", "Neural Logic Programming", "Network Layer Protocol", "Normal Language Process"], "answer_index": 0}
+            {"question": "When should you prefer the F1-Score over Accuracy as a performance metric?", "options": ["When the classes are balanced", "When the classes are highly imbalanced", "When training time is limited", "When using deep learning"], "answer_index": 1},
+            {"question": "Which technique is primarily used to reduce the dimensionality of a high-dimensional dataset?", "options": ["K-Means", "PCA (Principal Component Analysis)", "Linear Regression", "Cross Validation"], "answer_index": 1},
+            {"question": "In a Random Forest, what is the purpose of 'Bagging'?", "options": ["To increase bias", "To reduce variance", "To speed up training", "To prune the trees"], "answer_index": 1},
+            {"question": "What is the result of a 'Left Join' in SQL if the right table has no matching record?", "options": ["Error", "Zero", "NULL", "An empty string"], "answer_index": 2},
+            {"question": "Which distribution is characterized by the Mean, Median, and Mode all being equal?", "options": ["Poisson", "Binomial", "Normal (Gaussian)", "Exponential"], "answer_index": 2},
+            {"question": "What is the main goal of 'Regularization' in Machine Learning?", "options": ["To speed up convergence", "To prevent overfitting", "To increase model complexity", "To clean the data"], "answer_index": 1},
+            {"question": "In Python, which function is used to check for missing values in a Pandas DataFrame?", "options": ["df.null()", "df.isna()", "df.empty()", "df.check()"], "answer_index": 1},
+            {"question": "What is a 'p-value' threshold of 0.05 generally intended to indicate?", "options": ["95% probability the hypothesis is true", "Statistical significance", "A 5% error in measurement", "The effect size"], "answer_index": 1},
+            {"question": "Which of these is NOT a supervised learning algorithm?", "options": ["SVM", "Logistic Regression", "K-Means Clustering", "Decision Tree"], "answer_index": 2},
+            {"question": "What does the 'ReLU' activation function return for an input of -5?", "options": ["-5", "1", "0", "0.5"], "answer_index": 2}
         ]
 
         generic_fallback = [
@@ -301,29 +311,35 @@ def generate_quiz_questions(topic="software engineering", count=10):
         return get_fallback()
 
     prompt = f"""
-    You are an expert technical examiner. Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions on the topic of '{full_topic}'.
+    You are an expert technical examiner specialized in {full_topic}. 
+    Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions.
+    
+    STYLE GUIDE for {full_topic}:
+    {style_guide}
     
     CRITICAL GUIDELINES:
-    1. Questions MUST be deeply technical and STRICTLY related to the core concepts of '{full_topic}'.
-    2. If the topic is 'Physics', ask about specific laws, equations, or physical phenomena. DO NOT ask general questions.
-    3. If the topic is 'Data Science', ask about specific algorithms, statistical tests, or data modeling techniques.
-    4. Start with fundamental questions and progressively increase difficulty to advanced/expert levels. 
-    5. Ensure options are plausible but only one is clearly correct.
-    6. Random Seed for uniqueness: {uuid.uuid4()} - YOU MUST GENERATE A COMPLETELY UNIQUE AND NEW SET OF QUESTIONS EVERY TIME.
+    1. NEVER use generic templates like "Which of the following is a core concept in...".
+    2. Every question must be a unique technical probe. 
+    3. Vary the question types: 
+       - 40% Numerical or Problem-solving (requiring calculation or logic).
+       - 30% Scenario-based (e.g., 'If X happens in Y condition, what is the result?').
+       - 30% Conceptual/Deep-dive (testing understanding of underlying mechanisms).
+    4. Options must be technical and challenging, designed to test a true expert.
+    5. Random Seed: {uuid.uuid4()} - YOU MUST GENERATE A COMPLETELY FRESH BATCH OF QUESTIONS.
 
     Return ONLY a strict JSON array with this schema:
     [
       {{
-        "question": "Deeply technical question text",
-        "options": ["Plausible Option 1", "Plausible Option 2", "Plausible Option 3", "Plausible Option 4"],
+        "question": "The specific, technical question",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
         "answer_index": 0
       }}
     ]
     
     Rules:
-    - Exactly 4 options per question
-    - answer_index must be between 0 and 3
-    - Return ONLY the JSON array, no markdown or commentary.
+    - Exactly 4 options per question.
+    - answer_index must be between 0 and 3.
+    - Return ONLY the JSON array.
     """
     try:
         from services.llm_service import extract_json
