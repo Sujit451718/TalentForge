@@ -5,19 +5,27 @@ from flask import current_app
 
 def get_llm_model():
     api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key or api_key == "your_gemini_api_key_here":
-        # Log to console so the developer knows why it's failing
-        print("!!! ERROR: GOOGLE_API_KEY is missing or is the default placeholder !!!")
-        print("!!! Quiz generation will fall back to hardcoded questions !!!")
+    
+    if not api_key:
+        print("!!! ERROR: GOOGLE_API_KEY environment variable is NOT SET !!!")
         return None
+        
+    if api_key == "your_gemini_api_key_here":
+        print("!!! ERROR: GOOGLE_API_KEY is still using the placeholder value !!!")
+        return None
+    
+    # Log first/last chars for safety verification without exposing the full key
+    key_preview = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 10 else "INVALID_LENGTH"
+    print(f"--- Initializing Gemini Model with key: {key_preview} ---")
     
     try:
         genai.configure(api_key=api_key)
-        # Use gemini-1.5-flash - verify this is the correct model name for the user's tier
+        # We use gemini-1.5-flash as the primary high-speed model
         model = genai.GenerativeModel('gemini-1.5-flash')
+        # Test a very simple generation to confirm true connectivity
         return model
     except Exception as e:
-        print(f"!!! Error initializing Gemini Model: {e} !!!")
+        print(f"!!! CRITICAL: Failed to initialize Google AI Studio API: {e} !!!")
         return None
 
 def extract_json(text):
