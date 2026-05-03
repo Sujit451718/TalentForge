@@ -226,11 +226,10 @@ def submit_answer(current_user_id):
     all_strengths = list(set(all_strengths))[:3]
     all_weaknesses = list(set(all_weaknesses))[:3]
     
-    is_selected = total_score >= 70
     update_fields["summary"] = {
-        "is_selected": is_selected,
-        "strengths": all_strengths,
-        "weaknesses": all_weaknesses,
+        "is_selected": bool(total_score >= 70),
+        "strengths": all_strengths if all_strengths else ["Good technical communication."],
+        "weaknesses": all_weaknesses if all_weaknesses else ["Could add more specific project examples."],
         "future_improvements": all_weaknesses if all_weaknesses else ["Focus on structured thinking and concrete examples."]
     }
 
