@@ -35,13 +35,7 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
             for item in resume_questions
         ]
 
-    questions = [
-        {
-            "question": "To start, please tell me about yourself and your background.",
-            "context": "Introductory icebreaker",
-            "expected_keywords": ["experience", "background", "skills", "projects", "role"]
-        }
-    ]
+    questions = []
 
     if not model:
         # If AI model is not available, we return a helpful message instead of generic questions
@@ -53,13 +47,14 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
         return questions
 
     prompt = f"""
-    You are Jarvis, an elite technical interviewer. Generate {limit} highly unique, challenging, and STRICTLY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
+    You are Jarvis, an elite technical interviewer. Generate {limit} highly unique, challenging, and EXTREMELY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
     
     CRITICAL GUIDELINES:
-    1. The questions MUST be deeply technical and specific to the '{role}' domain.
-    2. DO NOT ask generic behavioral questions. Focus on architecture, implementation, and edge cases.
-    3. Provide a 'context' explaining why this specific technical concept is crucial for a {role}.
-    4. Random Seed for uniqueness: {uuid.uuid4()}
+    1. Every single question MUST be deeply technical and specific to the '{role}' domain.
+    2. DO NOT ask generic introductory questions like "Tell me about yourself".
+    3. Start IMMEDIATELY with a technical probe or architecture scenario relevant to {role}.
+    4. Provide a 'context' explaining why this specific technical concept is crucial for a {role}.
+    5. Random Seed for uniqueness: {uuid.uuid4()}
 
     Return a strict JSON array with this schema:
     [
