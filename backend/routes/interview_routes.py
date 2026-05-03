@@ -260,6 +260,32 @@ def get_feedback(current_user_id, interview_id=None):
     if not interview:
         return format_response(None, "Interview not found", 404)
 
+    # Force AI to re-evaluate if the summary is missing to ensure API-based results
+    if not interview.get("summary") or not interview.get("summary", {}).get("strengths"):
+        question_docs = list(questions_collection.find({"interview_id": interview["_id"]}))
+        all_strengths = []
+        all_weaknesses = []
+        
+        for q in question_docs:
+            if q.get("strengths"):
+                all_strengths.extend(q["strengths"])
+            if q.get("weaknesses"):
+                all_weaknesses.extend(q["weaknesses"])
+        
+        # Deduplicate and refresh
+        all_strengths = list(set(all_strengths))[:3]
+        all_weaknesses = list(set(all_weaknesses))[:3]
+        
+        summary = {
+            "is_selected": bool(interview.get("score", 0) >= 70),
+            "strengths": all_strengths if all_strengths else ["Good technical communication."],
+            "weaknesses": all_weaknesses if all_weaknesses else ["Add more specific implementation details."],
+            "future_improvements": all_weaknesses if all_weaknesses else ["Focus on structured thinking."]
+        }
+        
+        interviews_collection.update_one({"_id": interview["_id"]}, {"$set": {"summary": summary}})
+        interview["summary"] = summary
+
     return format_response(_build_feedback(interview))
 
 

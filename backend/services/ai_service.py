@@ -18,36 +18,7 @@ STOP_WORDS = {
     "with", "we", "will", "you", "your"
 }
 
-# Keep small fallback for absolute emergencies only
-EMERGENCY_QUESTIONS = {
-    "general": [
-        {
-            "question": "Tell me about a technical problem you solved and the tradeoffs you considered.",
-            "context": "Problem solving",
-            "expected_keywords": ["problem", "tradeoff", "impact", "decision", "result"]
-        }
-    ]
-}
-
-def _role_key(role):
-    value = (role or "").lower()
-    if "front" in value or "react" in value:
-        return "frontend"
-    if "back" in value or "api" in value or "python" in value or "flask" in value:
-        return "backend"
-    if "full" in value:
-        return "fullstack"
-    if "data" in value or "machine" in value or "science" in value or "learning" in value:
-        return "data science"
-    return "general"
-
-def _tokens(text):
-    words = re.findall(r"[a-zA-Z][a-zA-Z0-9+#.-]*", (text or "").lower())
-    return [word for word in words if word not in STOP_WORDS]
-
-def _contains_keyword(answer, keyword):
-    pattern = r"\b" + re.escape(keyword.lower()) + r"\b"
-    return bool(re.search(pattern, answer.lower()))
+# Removed hardcoded EMERGENCY_QUESTIONS to ensure full AI-driven interaction.
 
 def generate_interview_questions(role, experience_level, plan_type="free", resume_questions=None, use_resume=False):
     model = get_llm_model() if get_llm_model else None
@@ -72,65 +43,57 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
         }
     ]
 
-    if model:
-        prompt = f"""
-        You are an elite technical interviewer. Generate {limit} highly unique, challenging, and STRICTLY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
+    if not model:
+        # If AI model is not available, we return a helpful message instead of generic questions
+        questions.append({
+            "question": "I apologize, but my AI neural network is currently offline. Please ensure the GOOGLE_API_KEY is correctly configured to start a dynamic interview.",
+            "context": "System Alert",
+            "expected_keywords": []
+        })
+        return questions
+
+    prompt = f"""
+    You are Jarvis, an elite technical interviewer. Generate {limit} highly unique, challenging, and STRICTLY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
+    
+    CRITICAL GUIDELINES:
+    1. The questions MUST be deeply technical and specific to the '{role}' domain.
+    2. DO NOT ask generic behavioral questions. Focus on architecture, implementation, and edge cases.
+    3. Provide a 'context' explaining why this specific technical concept is crucial for a {role}.
+    4. Random Seed for uniqueness: {uuid.uuid4()}
+
+    Return a strict JSON array with this schema:
+    [
+      {{
+        "question": "Deeply technical question text",
+        "context": "Technical rationale for this question",
+        "expected_keywords": ["specific_tech_term1", "specific_tech_term2"]
+      }}
+    ]
+    """
+    try:
+        from services.llm_service import extract_json
+        response = model.generate_content(prompt)
+        items = extract_json(response.text)
         
-        CRITICAL GUIDELINES:
-        1. The questions MUST be deeply technical and specific to the '{role}' domain.
-        2. DO NOT ask generic behavioral or general software engineering questions if '{role}' is a specialized field.
-        3. Start with a solid fundamental technical question and progressively advance to high-level architecture or complex problem-solving.
-        4. Each question should be completely different from typical common questions.
-        5. Provide a 'context' explaining why this specific technical concept is crucial for a {role}.
-        6. Random Seed for uniqueness: {uuid.uuid4()}
-
-        Return a strict JSON array with this schema:
-        [
-          {{
-            "question": "Deeply technical question text",
-            "context": "Technical rationale for this question",
-            "expected_keywords": ["specific_tech_term1", "specific_tech_term2"]
-          }}
-        ]
-        """
-        try:
-            response = model.generate_content(prompt)
-            text = response.text.strip()
-            
-            if "```" in text:
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-                text = text.split("```")[0]
-
-            start_idx = text.find('[')
-            end_idx = text.rfind(']')
-            if start_idx != -1 and end_idx != -1:
-                clean_text = text[start_idx:end_idx+1]
-            else:
-                clean_text = text
-                
-            items = json.loads(clean_text)
+        if items and isinstance(items, list):
             for item in items[:limit]:
                 questions.append({
                     "question": item.get("question"),
                     "context": item.get("context"),
                     "expected_keywords": item.get("expected_keywords", [])
                 })
-            return questions
-        except Exception as e:
-            print(f"AI Interview Generation Error: {e}")
-
-    # Fallback only if AI fails
-    for item in EMERGENCY_QUESTIONS["general"][:limit]:
+        return questions
+    except Exception as e:
+        print(f"AI Interview Generation Error: {e}")
         questions.append({
-            "question": item["question"],
-            "context": f"{item.get('context', 'Interview question')} - {level} level",
-            "expected_keywords": item.get("expected_keywords", [])
+            "question": "I encountered an error while generating dynamic questions. Please check your API connectivity.",
+            "context": "System Error",
+            "expected_keywords": []
         })
-    return questions
+        return questions
 
 def evaluate_answer(question_text, user_answer, expected_keywords=None, premium=False):
+    # Always prioritize AI evaluation from llm_service
     if get_ai_evaluation:
         llm_result = get_ai_evaluation(question_text, user_answer)
         if llm_result and "score" in llm_result:
@@ -145,47 +108,17 @@ def evaluate_answer(question_text, user_answer, expected_keywords=None, premium=
                 "missing_keywords": []
             }
 
-    expected_keywords = expected_keywords or []
-    answer_tokens = _tokens(user_answer)
-    answer_counter = Counter(answer_tokens)
-    matched = [keyword for keyword in expected_keywords if _contains_keyword(user_answer, keyword)]
-    missing = [keyword for keyword in expected_keywords if keyword not in matched]
-
-    keyword_score = (len(matched) / len(expected_keywords)) * 65 if expected_keywords else 30
-    length_score = min(len(answer_tokens) / 90, 1) * 20
-    specificity_terms = {"because", "example", "tradeoff", "measure", "test", "monitor", "risk", "impact"}
-    specificity_score = min(sum(answer_counter.get(term, 0) for term in specificity_terms), 3) * 5
-    score = max(0, min(100, round(keyword_score + length_score + specificity_score)))
-
-    strengths = []
-    if matched:
-        strengths.append(f"Covered important concepts: {', '.join(matched[:4])}.")
-    if len(answer_tokens) >= 45:
-        strengths.append("Provided enough detail to show reasoning.")
-    if any(term in answer_counter for term in ["example", "tradeoff", "impact"]):
-        strengths.append("Included practical context instead of only definitions.")
-    if not strengths:
-        strengths.append("Answered the question and established a starting point.")
-
-    weaknesses = []
-    if missing:
-        weaknesses.append(f"Could strengthen coverage of: {', '.join(missing[:4])}.")
-    if len(answer_tokens) < 35:
-        weaknesses.append("The answer is brief; add implementation details and a concrete example.")
-    if not any(term in answer_counter for term in ["test", "monitor", "risk", "tradeoff"]):
-        weaknesses.append("Mention validation, tradeoffs, or operational concerns for a stronger response.")
-
-    suggested_answer = build_suggested_answer(question_text, expected_keywords)
-    feedback = "Strong answer." if score >= 80 else "Good foundation; add depth." if score >= 55 else "Needs more technical detail and examples."
-
+    # If AI fails, we no longer provide a 'fake' heuristic score. 
+    # We return a low score and a message indicating AI failure.
     return {
-        "score": score,
-        "feedback": feedback,
-        "strengths": strengths,
-        "weaknesses": weaknesses,
-        "suggested_answer": suggested_answer,
-        "matched_keywords": matched,
-        "missing_keywords": missing
+        "score": 0,
+        "feedback": "AI Evaluation failed. Please check your Google AI Studio API key.",
+        "strengths": [],
+        "weaknesses": ["AI Service Unavailable"],
+        "suggested_answer": "Unable to generate suggestion without AI.",
+        "jarvis_response": "I'm having trouble analyzing your answer. Please check my API configuration.",
+        "matched_keywords": [],
+        "missing_keywords": []
     }
 
 def build_suggested_answer(question_text, expected_keywords):
@@ -196,11 +129,44 @@ def build_suggested_answer(question_text, expected_keywords):
     )
 
 def generate_questions_from_resume(resume_text):
-    if ai_generate_questions_from_resume:
-        return ai_generate_questions_from_resume(resume_text)
+    model = get_llm_model()
+    if not model:
+        return [{
+            "question": "AI Service is currently offline. Please configure your GOOGLE_API_KEY to generate personalized questions from your resume.", 
+            "context": "System Alert", 
+            "expected_keywords": []
+        }]
     
-    # Very basic fallback
-    return [{"question": "Walk me through one resume project from requirements to deployment.", "context": "Resume project history", "expected_keywords": ["requirements", "implementation", "testing", "deployment", "impact"]}]
+    prompt = f"""
+    You are Jarvis, an expert technical recruiter. Analyze the following resume text and generate 5 highly personalized, challenging, and domain-specific technical interview questions.
+    
+    CRITICAL GUIDELINES:
+    1. Each question must be DIRECTLY LINKED to a specific experience, skill, or project mentioned in the resume.
+    2. Provide a 'context' explaining which part of the resume triggered the question.
+    
+    Resume Text:
+    {resume_text}
+    
+    Return a strict JSON list of objects:
+    [
+        {{
+            "question": "The personalized interview question",
+            "context": "Rationale based on the resume",
+            "expected_keywords": ["keyword1", "keyword2"]
+        }}
+    ]
+    """
+    
+    try:
+        from services.llm_service import extract_json
+        response = model.generate_content(prompt)
+        items = extract_json(response.text)
+        if items and isinstance(items, list):
+            return items[:5]
+        return []
+    except Exception as e:
+        print(f"Error generating resume questions: {e}")
+        return []
 
 
 def chatbot_reply(message):
