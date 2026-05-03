@@ -22,36 +22,50 @@ def get_llm_model():
 
 def extract_json(text):
     """Robustly extract JSON from AI response text."""
+    if not text:
+        return None
+        
+    clean_text = text.strip()
+    
+    # 1. Try direct parsing
     try:
-        # 1. Try direct parsing
-        return json.loads(text.strip())
+        return json.loads(clean_text)
     except:
         pass
 
     # 2. Try cleaning markdown code blocks
-    clean_text = text.strip()
-    if "```" in clean_text:
-        # Extract content between first and last ```
-        parts = clean_text.split("```")
-        for part in parts:
-            if "[" in part or "{" in part:
-                # Potential JSON inside
+    try:
+        if "```" in clean_text:
+            parts = clean_text.split("```")
+            for part in parts:
                 inner = part.strip()
                 if inner.startswith("json"): inner = inner[4:].strip()
-                try:
-                    return json.loads(inner)
-                except:
-                    continue
+                if inner.startswith("[") or inner.startswith("{"):
+                    try:
+                        return json.loads(inner)
+                    except:
+                        continue
+    except:
+        pass
 
     # 3. Find first [ or { and last ] or }
-    start_bracket = min([i for i, c in enumerate(clean_text) if c in "[{"] or [0])
-    end_bracket = max([i for i, c in enumerate(clean_text) if c in "]}"] or [len(clean_text)])
-    
-    if start_bracket < end_bracket:
-        try:
-            return json.loads(clean_text[start_bracket:end_bracket+1])
-        except:
-            pass
+    try:
+        start_idx = -1
+        for i, c in enumerate(clean_text):
+            if c in "[{":
+                start_idx = i
+                break
+        
+        end_idx = -1
+        for i in range(len(clean_text)-1, -1, -1):
+            if clean_text[i] in "]}":
+                end_idx = i
+                break
+                
+        if start_idx != -1 and end_idx != -1:
+            return json.loads(clean_text[start_idx:end_idx+1])
+    except:
+        pass
             
     return None
 
