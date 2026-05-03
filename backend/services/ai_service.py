@@ -5,12 +5,13 @@ import uuid
 from collections import Counter
 
 try:
-    from services.llm_service import get_ai_evaluation, get_llm_model, generate_questions_from_resume as ai_generate_questions_from_resume
+    from services.llm_service import get_ai_evaluation, get_llm_model, generate_questions_from_resume as ai_generate_questions_from_resume, extract_json
 except Exception as e:
     print(f"Error importing llm_service functions: {e}")
     get_ai_evaluation = None
     get_llm_model = None
     ai_generate_questions_from_resume = None
+    extract_json = None
 
 STOP_WORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
@@ -66,7 +67,6 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
     ]
     """
     try:
-        from services.llm_service import extract_json
         response = model.generate_content(prompt)
         items = extract_json(response.text)
         
@@ -153,7 +153,6 @@ def generate_questions_from_resume(resume_text):
     """
     
     try:
-        from services.llm_service import extract_json
         response = model.generate_content(prompt)
         items = extract_json(response.text)
         if items and isinstance(items, list):
