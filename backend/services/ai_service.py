@@ -237,42 +237,73 @@ def generate_quiz_questions(topic="software engineering", count=10):
         "react": "React.js and Frontend Development",
         "node": "Node.js and Backend Development",
         "sql": "Database Management and SQL",
-        "py": "Python Programming"
+        "py": "Python Programming",
+        "cpp": "C++ Programming",
+        "js": "JavaScript",
+        "cloud": "Cloud Computing (AWS/Azure/GCP)",
+        "physics": "Physics (Mechanics, Thermodynamics, Electromagnetism)"
     }
     
     clean_topic = topic.lower().strip()
     full_topic = topic_mapping.get(clean_topic, topic)
 
-    # Define a slightly better fallback that at least mentions the topic
+    # Define a significantly better fallback that provides 10 questions
     def get_fallback():
-        print(f"Falling back to emergency quiz for topic: {full_topic}")
-        return [
+        print(f"Falling back to template quiz for topic: {full_topic}")
+        # Template-based questions that adapt slightly better to the topic
+        templates = [
             {
-                "question": f"Which of the following is a fundamental concept in {full_topic}?",
-                "options": ["Core Principles", "Manual Processes", "Random Guessing", "None of these"],
-                "answer_index": 0,
+                "question": f"In the context of {full_topic}, what is a primary consideration for ensuring high-quality outcomes?",
+                "options": ["Rigorous validation and testing", "Increasing manual complexity", "Avoiding documentation", "Randomized implementation"],
+                "answer_index": 0
             },
             {
-                "question": f"What is a primary goal when working within the {full_topic} domain?",
-                "options": ["Efficiency and Quality", "Increasing complexity", "Avoiding documentation", "Ignoring requirements"],
-                "answer_index": 0,
+                "question": f"Which of the following best describes a 'bottleneck' within a {full_topic} workflow?",
+                "options": ["A resource or stage that limits overall throughput", "A decorative architectural element", "A highly efficient pathway", "A type of data variable"],
+                "answer_index": 0
             },
             {
-                "question": f"In {full_topic}, what does 'scalability' generally refer to?",
-                "options": ["Handling growth effectively", "Visual appearance", "The number of files", "Developer preference"],
-                "answer_index": 0,
+                "question": f"How is 'scalability' typically addressed when working in {full_topic}?",
+                "options": ["Designing systems to handle increased load efficiently", "Decreasing the number of users", "Hardcoding all configurations", "Focusing solely on visual aesthetics"],
+                "answer_index": 0
             },
             {
-                "question": f"Why is 'validation' important in {full_topic}?",
-                "options": ["To ensure correctness", "To waste time", "To increase costs", "To confuse users"],
-                "answer_index": 0,
+                "question": f"Why is 'modular design' often preferred in {full_topic} projects?",
+                "options": ["It improves maintainability and reusability", "It makes the system harder to understand", "It increases total development time", "It is only used for small projects"],
+                "answer_index": 0
             },
             {
-                "question": f"What is a 'bottleneck' in the context of {full_topic}?",
-                "options": ["A performance constraint", "A decorative feature", "A fast pathway", "A type of variable"],
-                "answer_index": 0,
+                "question": f"What does the term 'latency' usually refer to in {full_topic} systems?",
+                "options": ["The time delay before a transfer of data begins", "The total storage capacity", "The number of lines of code", "The cost of the hardware"],
+                "answer_index": 0
+            },
+            {
+                "question": f"In {full_topic}, what is the purpose of 'version control'?",
+                "options": ["Tracking and managing changes to project assets", "Limiting access to the internet", "Speeding up hardware performance", "Automatically fixing all bugs"],
+                "answer_index": 0
+            },
+            {
+                "question": f"Which principle is most associated with 'efficiency' in {full_topic}?",
+                "options": ["Optimizing resource usage for maximum output", "Using the most expensive tools", "Working without a plan", "Increasing the number of steps"],
+                "answer_index": 0
+            },
+            {
+                "question": f"What is a common 'trade-off' encountered in {full_topic} decision making?",
+                "options": ["Speed vs. Accuracy", "Day vs. Night", "Left vs. Right", "Yes vs. No"],
+                "answer_index": 0
+            },
+            {
+                "question": f"How does 'automation' benefit a {full_topic} environment?",
+                "options": ["By reducing repetitive manual tasks and errors", "By requiring more manual labor", "By slowing down the production line", "By making processes unpredictable"],
+                "answer_index": 0
+            },
+            {
+                "question": f"What is the ultimate goal of a professional working in {full_topic}?",
+                "options": ["Delivering value through effective problem solving", "Writing the longest possible reports", "Avoiding all team collaboration", "Maximizing system downtime"],
+                "answer_index": 0
             }
         ]
+        return templates[:count]
 
     if not model:
         return get_fallback()
@@ -281,11 +312,12 @@ def generate_quiz_questions(topic="software engineering", count=10):
     You are an expert technical examiner. Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions on the topic of '{full_topic}'.
     
     CRITICAL GUIDELINES:
-    1. Questions MUST be deeply technical and STRICTLY related to the domain of '{full_topic}'.
-    2. Start with easy fundamental questions and progressively increase difficulty to advanced/expert levels. 
-    3. Ensure options are plausible but only one is clearly correct.
-    4. Avoid generic "What is X?" questions; prefer scenario-based or deep conceptual probes.
-    5. Random Seed for uniqueness: {uuid.uuid4()} - YOU MUST GENERATE A COMPLETELY UNIQUE SET OF QUESTIONS EVERY TIME.
+    1. Questions MUST be deeply technical and STRICTLY related to the core concepts of '{full_topic}'.
+    2. If the topic is 'Physics', ask about specific laws (Newtonian, Thermodynamics, Electromagnetism), quantum mechanics, or relativity. DO NOT ask general questions.
+    3. If the topic is 'Data Science', ask about specific algorithms (Random Forest, SVM), statistical tests (p-values, chi-square), or data engineering patterns.
+    4. Start with fundamental questions and progressively increase difficulty to advanced/expert levels. 
+    5. Ensure options are plausible but only one is clearly correct.
+    6. Random Seed for uniqueness: {uuid.uuid4()} - YOU MUST GENERATE A COMPLETELY UNIQUE AND NEW SET OF QUESTIONS EVERY TIME.
 
     Return ONLY a strict JSON array with this schema:
     [
