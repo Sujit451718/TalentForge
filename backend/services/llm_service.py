@@ -119,6 +119,32 @@ def generate_questions_from_resume(resume_text):
         print(f"Error generating resume questions: {e}")
         return [{"question": "Could you tell me about your most recent project?", "context": "Fallback question", "expected_keywords": ["project", "result", "experience"]}]
 
+def chatbot_reply_ai(message, context="general"):
+    model = get_llm_model()
+    if not model:
+        return "I'm Jarvis, your AI career assistant. Please configure my API key to enable full interactive capabilities."
+    
+    prompt = f"""
+    You are Jarvis, a highly intelligent, witty, and helpful AI career assistant. 
+    A user is asking you a question in the context of: {context}.
+    
+    User message: {message}
+    
+    Guidelines:
+    - Be conversational, professional, but slightly witty/charming.
+    - Provide actionable career, interview, or technical advice.
+    - Keep responses relatively concise (2-4 sentences).
+    - If asked about ATS, explain how it works and how to optimize for it.
+    - If asked about interviews, give tips on the STAR method or technical depth.
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Jarvis AI Error: {e}")
+        return "I apologize, but I'm having trouble connecting to my neural network right now. How else can I assist you with your career today?"
+
 def get_ats_score_evaluation(resume_text, target_role="Software Engineer"):
     model = get_llm_model()
     if not model:
@@ -131,25 +157,29 @@ def get_ats_score_evaluation(resume_text, target_role="Software Engineer"):
     Resume Text:
     {resume_text}
     
-    First, dynamically determine a list of 15-20 crucial keywords, skills, and technologies that are highly relevant specifically to the "{target_role}" domain.
-    CRITICAL INSTRUCTION: DO NOT use generic or unrelated web technologies (e.g., do not look for "React.js" or "Frontend" if the domain is Data Science or Backend). Only identify keywords that natively belong to the '{target_role}' domain.
-    Then, check the Resume Text for the presence of these strictly domain-specific keywords.
-    Calculate the score based strictly on the percentage of these domain-specific keywords found in the resume.
-    
-    Provide your evaluation in the following strict JSON format:
+    Task:
+    1. Dynamically determine a list of 15-20 CRUCIAL, high-impact technical keywords, skills, and industry-standard technologies that are specifically relevant to "{target_role}".
+    2. Check the Resume Text for the presence of these keywords.
+    3. Calculate an ATS score (0-100) based on keyword matching, formatting quality, and experience relevance.
+    4. Provide a verdict (e.g., "Critical", "Poor", "Good", "Strong", "Excellent").
+    5. List found keywords and missing keywords.
+    6. Provide 3-5 high-impact, actionable suggestions to improve the resume for this specific role.
+
+    Return the result in this STRICT JSON format:
     {{
-        "score": 85,
-        "found_keywords": ["keyword1", "keyword2"],
-        "missing_keywords": ["keyword1", "keyword2"],
-        "verdict": "Strong",
-        "suggestions": ["suggestion1", "suggestion2"]
+        "score": (integer),
+        "found_keywords": ["list", "of", "found"],
+        "missing_keywords": ["list", "of", "missing"],
+        "verdict": "Verdict string",
+        "suggestions": ["suggestion 1", "suggestion 2", "suggestion 3"]
     }}
+    
+    Rule: Return ONLY the JSON object. No markdown.
     """
     
     try:
         response = model.generate_content(prompt)
         text = response.text.strip()
-        import json
         
         # Robust JSON cleaning
         if "```" in text:
@@ -169,4 +199,10 @@ def get_ats_score_evaluation(resume_text, target_role="Software Engineer"):
     except Exception as e:
         error_msg = f"{str(e)} | Raw output: {text[:200]}..." if 'text' in locals() else str(e)
         print(f"Error generating ATS evaluation: {error_msg}")
-        return {"error": error_msg}
+        return {
+            "score": 0,
+            "found_keywords": [],
+            "missing_keywords": [],
+            "verdict": "Error",
+            "suggestions": ["Check your API key or internet connection."]
+        }

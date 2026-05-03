@@ -204,49 +204,71 @@ def generate_questions_from_resume(resume_text):
 
 
 def chatbot_reply(message):
-    text = (message or "").strip().lower()
-    if not text:
-        return "Share your question and I will help with interview prep, resume tips, or ATS guidance."
-    if "ats" in text or "resume" in text:
-        return "For better ATS score: use role keywords, add measurable outcomes, and keep sections clear (Summary, Skills, Experience, Projects)."
-    if "premium" in text:
-        return "Premium gives unlimited interviews, resume-based questions, and ATS scoring after upload."
-    if "quiz" in text:
-        return "Try the quiz page to practice fast MCQs. Correct and wrong answers include audio feedback."
-    if "admin" in text:
-        return "Admin powers are available under the Profile page while account type still appears as User."
-    return "Focus on structure: answer with approach, implementation details, tradeoffs, and a measurable outcome."
+    try:
+        from services.llm_service import chatbot_reply_ai
+        return chatbot_reply_ai(message)
+    except Exception:
+        text = (message or "").strip().lower()
+        if not text:
+            return "Share your question and I will help with interview prep, resume tips, or ATS guidance."
+        if "ats" in text or "resume" in text:
+            return "For better ATS score: use role keywords, add measurable outcomes, and keep sections clear (Summary, Skills, Experience, Projects)."
+        if "premium" in text:
+            return "Premium gives unlimited interviews, resume-based questions, and ATS scoring after upload."
+        if "quiz" in text:
+            return "Try the quiz page to practice fast MCQs. Correct and wrong answers include audio feedback."
+        if "admin" in text:
+            return "Admin powers are available under the Profile page while account type still appears as User."
+        return "Focus on structure: answer with approach, implementation details, tradeoffs, and a measurable outcome."
 
 
 def generate_quiz_questions(topic="software engineering", count=10):
     model = get_llm_model() if get_llm_model else None
     
+    # Handle abbreviations and specific domains
+    topic_mapping = {
+        "gs": "General Science",
+        "ds": "Data Science",
+        "ml": "Machine Learning",
+        "ai": "Artificial Intelligence",
+        "se": "Software Engineering",
+        "qa": "Quality Assurance",
+        "dsa": "Data Structures and Algorithms",
+        "react": "React.js and Frontend Development",
+        "node": "Node.js and Backend Development",
+        "sql": "Database Management and SQL",
+        "py": "Python Programming"
+    }
+    
+    clean_topic = topic.lower().strip()
+    full_topic = topic_mapping.get(clean_topic, topic)
+
     # Define a slightly better fallback that at least mentions the topic
     def get_fallback():
-        print(f"Falling back to emergency quiz for topic: {topic}")
+        print(f"Falling back to emergency quiz for topic: {full_topic}")
         return [
             {
-                "question": f"Which of the following is a fundamental concept in {topic}?",
+                "question": f"Which of the following is a fundamental concept in {full_topic}?",
                 "options": ["Core Principles", "Manual Processes", "Random Guessing", "None of these"],
                 "answer_index": 0,
             },
             {
-                "question": f"What is a primary goal when working within the {topic} domain?",
+                "question": f"What is a primary goal when working within the {full_topic} domain?",
                 "options": ["Efficiency and Quality", "Increasing complexity", "Avoiding documentation", "Ignoring requirements"],
                 "answer_index": 0,
             },
             {
-                "question": f"In {topic}, what does 'scalability' generally refer to?",
+                "question": f"In {full_topic}, what does 'scalability' generally refer to?",
                 "options": ["Handling growth effectively", "Visual appearance", "The number of files", "Developer preference"],
                 "answer_index": 0,
             },
             {
-                "question": f"Why is 'validation' important in {topic}?",
+                "question": f"Why is 'validation' important in {full_topic}?",
                 "options": ["To ensure correctness", "To waste time", "To increase costs", "To confuse users"],
                 "answer_index": 0,
             },
             {
-                "question": f"What is a 'bottleneck' in the context of {topic}?",
+                "question": f"What is a 'bottleneck' in the context of {full_topic}?",
                 "options": ["A performance constraint", "A decorative feature", "A fast pathway", "A type of variable"],
                 "answer_index": 0,
             }
@@ -256,14 +278,14 @@ def generate_quiz_questions(topic="software engineering", count=10):
         return get_fallback()
 
     prompt = f"""
-    You are an expert technical examiner. Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions on the topic of '{topic}'.
+    You are an expert technical examiner. Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions on the topic of '{full_topic}'.
     
     CRITICAL GUIDELINES:
-    1. Questions MUST be deeply technical and STRICTLY related to the domain of '{topic}'.
+    1. Questions MUST be deeply technical and STRICTLY related to the domain of '{full_topic}'.
     2. Start with easy fundamental questions and progressively increase difficulty to advanced/expert levels. 
     3. Ensure options are plausible but only one is clearly correct.
     4. Avoid generic "What is X?" questions; prefer scenario-based or deep conceptual probes.
-    5. Random Seed for uniqueness: {random.randint(10000, 99999)}.
+    5. Random Seed for uniqueness: {uuid.uuid4()} - YOU MUST GENERATE A COMPLETELY UNIQUE SET OF QUESTIONS EVERY TIME.
 
     Return ONLY a strict JSON array with this schema:
     [
