@@ -91,13 +91,15 @@ def get_ai_evaluation(question, answer):
     {{
         "score": (integer between 0 and 100),
         "feedback": "A concise assessment of the answer",
-        "strengths": ["list", "of", "strengths", "in", "the", "answer"],
-        "weaknesses": ["list", "of", "weaknesses", "or", "missing", "points"],
+        "strengths": ["Identify 2-3 specific technical strengths found in the answer"],
+        "weaknesses": ["Identify 2-3 specific technical gaps or areas needing more detail"],
         "suggested_answer": "An ideal suggested answer incorporating the missing points",
         "jarvis_response": "A short, conversational and encouraging reply addressing the user directly (1-2 sentences)"
     }}
     
     Rules:
+    - BE CRITICAL: Identify real technical gaps.
+    - BE SPECIFIC: Mention technologies or concepts by name.
     - Return ONLY the JSON object.
     - No markdown formatting.
     """

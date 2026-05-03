@@ -1,22 +1,25 @@
 import { Download, Lightbulb, ShieldAlert, Sparkles, Target } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import Spinner from '../components/Spinner.jsx';
 import { getApiError, interviewApi } from '../services/api.js';
 
 export default function Feedback() {
   const { interviewId } = useParams();
-  const [feedback, setFeedback] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const [data, setData] = useState(location.state?.feedbackData || null);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(!location.state?.feedbackData);
+
 
   useEffect(() => {
     async function load() {
+      if (data) return; // Skip if we already have data from navigation
       setLoading(true);
       setError('');
       try {
         const response = await interviewApi.feedback(interviewId);
-        setFeedback(response.data.data);
+        setData(response.data.data);
       } catch (err) {
         setError(getApiError(err));
       } finally {
@@ -25,20 +28,20 @@ export default function Feedback() {
     }
 
     load();
-  }, [interviewId]);
+  }, [interviewId, data]);
 
   const downloadReport = () => {
-    if (!feedback) return;
-    const blob = new Blob([JSON.stringify(feedback, null, 2)], { type: 'application/json' });
+    if (!data) return;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `interview-report-${feedback.interview_id}.json`;
+    anchor.download = `interview-report-${data.interview_id}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   };
 
-  const score = Math.round(feedback?.total_score || 0);
+  const score = Math.round(data?.total_score || 0);
 
   return (
     <main className="page-shell">
@@ -53,7 +56,7 @@ export default function Feedback() {
           <h1 className="mt-2 text-4xl font-black text-white sm:text-5xl text-glow">Interview Feedback</h1>
           <p className="mt-3 text-lg text-slate-400">Deep dive into your score, strengths, and areas for growth.</p>
         </div>
-        <button className="gradient-button group h-12" type="button" onClick={downloadReport} disabled={!feedback}>
+        <button className="gradient-button group h-12" type="button" onClick={downloadReport} disabled={!data}>
           <Download className="h-5 w-5 transition-transform group-hover:-translate-y-1" />
           Download PDF Report
         </button>
@@ -67,7 +70,7 @@ export default function Feedback() {
         <p className="border border-pink-500/30 bg-pink-500/10 p-6 text-sm text-pink-200 rounded-2xl flex items-center gap-3 animate-shake">
           <ShieldAlert className="h-5 w-5" /> {error}
         </p>
-      ) : feedback ? (
+      ) : data ? (
         <div className="mx-auto max-w-5xl space-y-8">
           {/* Main Score Card */}
           <section className="glass-panel animated-card p-10 zoom-in relative overflow-hidden">
@@ -84,10 +87,10 @@ export default function Feedback() {
                 </div>
                 <div className="mt-6 flex flex-wrap justify-center md:justify-start gap-3">
                    <span className="px-4 py-2 bg-slate-800/80 rounded-xl border border-white/10 text-xs font-black uppercase tracking-widest text-cyan-300 shadow-lg">
-                     {feedback.role}
+                     {data.role}
                    </span>
                    <span className="px-4 py-2 bg-slate-800/80 rounded-xl border border-white/10 text-xs font-black uppercase tracking-widest text-violet-300 shadow-lg">
-                     {feedback.experience_level}
+                     {data.experience_level}
                    </span>
                 </div>
               </div>
@@ -112,26 +115,26 @@ export default function Feedback() {
                 <Target className="h-6 w-6 text-cyan-400" />
               </div>
               <p className="label">Questions Answered</p>
-              <p className="mt-2 text-3xl font-black text-white">{feedback.analytics?.questions_answered || 0}</p>
+              <p className="mt-2 text-3xl font-black text-white">{data.analytics?.questions_answered || 0}</p>
             </div>
             <div className="glass-panel animated-card p-8 slide-in-up border-t-4 border-t-emerald-500" style={{ animationDelay: '100ms' }}>
               <div className="h-12 w-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
                 <Sparkles className="h-6 w-6 text-emerald-400" />
               </div>
               <p className="label">Best Response Accuracy</p>
-              <p className="mt-2 text-3xl font-black text-white">{feedback.analytics?.best_question_score || 0}%</p>
+              <p className="mt-2 text-3xl font-black text-white">{data.analytics?.best_question_score || 0}%</p>
             </div>
             <div className="glass-panel animated-card p-8 slide-in-right border-t-4 border-t-pink-500" style={{ animationDelay: '200ms' }}>
               <div className="h-12 w-12 bg-pink-500/10 rounded-2xl flex items-center justify-center mb-6 border border-pink-500/20 shadow-[0_0_15px_rgba(236,72,153,0.2)]">
                 <Lightbulb className="h-6 w-6 text-pink-400" />
               </div>
               <p className="label">Primary Focus Area</p>
-              <p className="mt-2 text-base font-bold text-white leading-relaxed capitalize">{feedback.analytics?.focus_area || 'General Practice'}</p>
+              <p className="mt-2 text-base font-bold text-white leading-relaxed capitalize">{data.analytics?.focus_area || 'General Practice'}</p>
             </div>
           </section>
 
           {/* Detailed Summary */}
-          {feedback.summary && (
+          {data.summary && (
             <section className="p-8 glass-panel animated-card slide-in-up border-l-4 border-l-violet-500">
               <h2 className="text-2xl font-black text-white mb-8 flex items-center gap-3">
                 <BrainCircuit className="h-6 w-6 text-violet-400" /> Executive Summary
@@ -142,7 +145,7 @@ export default function Feedback() {
                     <Sparkles className="h-5 w-5 group-hover:animate-pulse"/> Core Strengths
                   </p>
                   <ul className="space-y-3">
-                    {feedback.summary.strengths?.map((s, i) => (
+                    {data.summary.strengths?.map((s, i) => (
                       <li key={i} className="text-sm font-medium text-slate-300 flex items-start gap-3 bg-white/[0.02] p-3 rounded-xl">
                         <div className="h-5 w-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
                           <span className="h-1.5 w-1.5 bg-emerald-400 rounded-full" />
@@ -150,7 +153,7 @@ export default function Feedback() {
                         {s}
                       </li>
                     ))}
-                    {!feedback.summary.strengths?.length && <li className="text-sm text-slate-400 italic">Complete more questions for AI assessment.</li>}
+                    {!data.summary.strengths?.length && <li className="text-sm text-slate-400 italic">Complete more questions for AI assessment.</li>}
                   </ul>
                 </div>
                 <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 hover:border-pink-500/30 transition-colors group">
@@ -158,7 +161,7 @@ export default function Feedback() {
                     <ShieldAlert className="h-5 w-5 group-hover:animate-shake"/> Areas to Improve
                   </p>
                   <ul className="space-y-3">
-                    {feedback.summary.weaknesses?.map((w, i) => (
+                    {data.summary.weaknesses?.map((w, i) => (
                       <li key={i} className="text-sm font-medium text-slate-300 flex items-start gap-3 bg-white/[0.02] p-3 rounded-xl">
                         <div className="h-5 w-5 rounded-full bg-pink-500/20 flex items-center justify-center shrink-0 mt-0.5">
                           <span className="h-1.5 w-1.5 bg-pink-400 rounded-full" />
@@ -166,7 +169,7 @@ export default function Feedback() {
                         {w}
                       </li>
                     ))}
-                    {!feedback.summary.weaknesses?.length && <li className="text-sm text-slate-400 italic">Complete more questions for AI assessment.</li>}
+                    {!data.summary.weaknesses?.length && <li className="text-sm text-slate-400 italic">Complete more questions for AI assessment.</li>}
                   </ul>
                 </div>
                 <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 hover:border-cyan-500/30 transition-colors group">
@@ -174,7 +177,7 @@ export default function Feedback() {
                     <Target className="h-5 w-5 group-hover:animate-bounce"/> Future Focus
                   </p>
                   <ul className="space-y-3">
-                    {feedback.summary.future_improvements?.map((f, i) => (
+                    {data.summary.future_improvements?.map((f, i) => (
                       <li key={i} className="text-sm font-medium text-slate-300 flex items-start gap-3 bg-white/[0.02] p-3 rounded-xl">
                         <div className="h-5 w-5 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0 mt-0.5">
                           <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full" />
@@ -182,7 +185,7 @@ export default function Feedback() {
                         {f}
                       </li>
                     ))}
-                    {!feedback.summary.future_improvements?.length && <li className="text-sm text-slate-400 italic">Complete more questions for AI assessment.</li>}
+                    {!data.summary.future_improvements?.length && <li className="text-sm text-slate-400 italic">Complete more questions for AI assessment.</li>}
                   </ul>
                 </div>
               </div>
@@ -192,7 +195,7 @@ export default function Feedback() {
           {/* Question Breakdown */}
           <section className="space-y-8 mt-12">
             <h2 className="text-3xl font-black text-white mb-6">Question Breakdown</h2>
-            {feedback.questions.map((item, index) => (
+            {data.questions.map((item, index) => (
               <article key={item.id || index} className="glass-panel animated-card p-8 slide-in-up" style={{ animationDelay: `${index * 100}ms` }}>
                 <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-start bg-slate-900/40 p-6 rounded-2xl border border-white/5">
                   <div className="flex-1">

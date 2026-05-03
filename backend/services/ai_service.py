@@ -34,19 +34,30 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
         {"question": f"Describe your testing strategy for ensuring the reliability of a {role} project.", "context": "Quality Assurance", "expected_keywords": ["unit test", "integration", "coverage"]}
     ]
 
+    # Mandatory introductory question
+    questions = [
+        {
+            "question": "To start, please provide a brief self-introduction focusing on your technical background and key achievements.",
+            "context": "Professional Introduction",
+            "expected_keywords": ["experience", "projects", "skills", "role", "background"]
+        }
+    ]
+
     if use_resume and resume_questions:
-        return [
+        questions.extend([
             {
                 "question": item.get("question") or item.get("text"),
                 "context": item.get("context", "Resume-based question"),
                 "expected_keywords": item.get("expected_keywords", [])
             }
             for item in resume_questions
-        ]
+        ])
+        return questions
 
     if not model:
         print(f"!!! API Key not working. Switching to Manual Interview Mode for {role} !!!")
-        return manual_interview_questions[:limit]
+        questions.extend(manual_interview_questions[:limit-1])
+        return questions
 
     prompt = f"""
     You are Jarvis, an elite technical interviewer. Generate {limit} highly unique, challenging, and EXTREMELY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
