@@ -247,63 +247,55 @@ def generate_quiz_questions(topic="software engineering", count=10):
     clean_topic = topic.lower().strip()
     full_topic = topic_mapping.get(clean_topic, topic)
 
-    # Define a significantly better fallback that provides 10 questions
+    # Define a significantly better fallback that provides 10 questions and is domain-aware
     def get_fallback():
-        print(f"Falling back to template quiz for topic: {full_topic}")
-        # Template-based questions that adapt slightly better to the topic
-        templates = [
-            {
-                "question": f"In the context of {full_topic}, what is a primary consideration for ensuring high-quality outcomes?",
-                "options": ["Rigorous validation and testing", "Increasing manual complexity", "Avoiding documentation", "Randomized implementation"],
-                "answer_index": 0
-            },
-            {
-                "question": f"Which of the following best describes a 'bottleneck' within a {full_topic} workflow?",
-                "options": ["A resource or stage that limits overall throughput", "A decorative architectural element", "A highly efficient pathway", "A type of data variable"],
-                "answer_index": 0
-            },
-            {
-                "question": f"How is 'scalability' typically addressed when working in {full_topic}?",
-                "options": ["Designing systems to handle increased load efficiently", "Decreasing the number of users", "Hardcoding all configurations", "Focusing solely on visual aesthetics"],
-                "answer_index": 0
-            },
-            {
-                "question": f"Why is 'modular design' often preferred in {full_topic} projects?",
-                "options": ["It improves maintainability and reusability", "It makes the system harder to understand", "It increases total development time", "It is only used for small projects"],
-                "answer_index": 0
-            },
-            {
-                "question": f"What does the term 'latency' usually refer to in {full_topic} systems?",
-                "options": ["The time delay before a transfer of data begins", "The total storage capacity", "The number of lines of code", "The cost of the hardware"],
-                "answer_index": 0
-            },
-            {
-                "question": f"In {full_topic}, what is the purpose of 'version control'?",
-                "options": ["Tracking and managing changes to project assets", "Limiting access to the internet", "Speeding up hardware performance", "Automatically fixing all bugs"],
-                "answer_index": 0
-            },
-            {
-                "question": f"Which principle is most associated with 'efficiency' in {full_topic}?",
-                "options": ["Optimizing resource usage for maximum output", "Using the most expensive tools", "Working without a plan", "Increasing the number of steps"],
-                "answer_index": 0
-            },
-            {
-                "question": f"What is a common 'trade-off' encountered in {full_topic} decision making?",
-                "options": ["Speed vs. Accuracy", "Day vs. Night", "Left vs. Right", "Yes vs. No"],
-                "answer_index": 0
-            },
-            {
-                "question": f"How does 'automation' benefit a {full_topic} environment?",
-                "options": ["By reducing repetitive manual tasks and errors", "By requiring more manual labor", "By slowing down the production line", "By making processes unpredictable"],
-                "answer_index": 0
-            },
-            {
-                "question": f"What is the ultimate goal of a professional working in {full_topic}?",
-                "options": ["Delivering value through effective problem solving", "Writing the longest possible reports", "Avoiding all team collaboration", "Maximizing system downtime"],
-                "answer_index": 0
-            }
+        print(f"Falling back to domain-aware quiz for topic: {full_topic}")
+        
+        physics_fallback = [
+            {"question": "What is the SI unit of Force?", "options": ["Joule", "Newton", "Watt", "Pascal"], "answer_index": 1},
+            {"question": "Which law states that for every action, there is an equal and opposite reaction?", "options": ["Newton's First Law", "Newton's Second Law", "Newton's Third Law", "Law of Gravitation"], "answer_index": 2},
+            {"question": "What is the acceleration due to gravity on Earth (approx)?", "options": ["5.8 m/s²", "9.8 m/s²", "12.4 m/s²", "3.2 m/s²"], "answer_index": 1},
+            {"question": "Which of these is a vector quantity?", "options": ["Mass", "Temperature", "Velocity", "Time"], "answer_index": 2},
+            {"question": "What is the speed of light in a vacuum?", "options": ["3 x 10⁸ m/s", "3 x 10⁶ m/s", "3 x 10¹⁰ m/s", "3 x 10⁵ m/s"], "answer_index": 0},
+            {"question": "Who proposed the Theory of General Relativity?", "options": ["Isaac Newton", "Albert Einstein", "Nikola Tesla", "Marie Curie"], "answer_index": 1},
+            {"question": "What is the primary particle involved in electric current in a wire?", "options": ["Proton", "Neutron", "Electron", "Positron"], "answer_index": 2},
+            {"question": "What does a barometer measure?", "options": ["Temperature", "Humidity", "Atmospheric Pressure", "Wind Speed"], "answer_index": 2},
+            {"question": "In thermodynamics, what is the absolute zero temperature in Celsius?", "options": ["0°C", "-100°C", "-273.15°C", "-373.15°C"], "answer_index": 2},
+            {"question": "What is the unit of electrical resistance?", "options": ["Volt", "Ampere", "Ohm", "Farad"], "answer_index": 2}
         ]
-        return templates[:count]
+
+        ds_fallback = [
+            {"question": "What is the most common language used for Data Science?", "options": ["Java", "C++", "Python", "PHP"], "answer_index": 2},
+            {"question": "Which algorithm is used for classification?", "options": ["K-Means", "Linear Regression", "Random Forest", "Apriori"], "answer_index": 2},
+            {"question": "What does 'EDA' stand for in Data Science?", "options": ["Effective Data Analysis", "Exploratory Data Analysis", "Estimated Data Amount", "Extended Data Array"], "answer_index": 1},
+            {"question": "Which library is primarily used for data manipulation in Python?", "options": ["NumPy", "Matplotlib", "Pandas", "Scikit-Learn"], "answer_index": 2},
+            {"question": "What is 'overfitting' in Machine Learning?", "options": ["Model performs well on test data only", "Model performs well on training data only", "Model is too simple", "Model has no parameters"], "answer_index": 1},
+            {"question": "What is a p-value in statistics?", "options": ["The probability of the null hypothesis being true", "The probability of observing the result by chance", "The power of the test", "The effect size"], "answer_index": 1},
+            {"question": "Which of these is a supervised learning task?", "options": ["Clustering", "Regression", "Dimensionality Reduction", "Association Rule Mining"], "answer_index": 1},
+            {"question": "What is the purpose of a confusion matrix?", "options": ["To visualize data", "To evaluate classification performance", "To clean data", "To train a model"], "answer_index": 1},
+            {"question": "In SQL, which command is used to remove duplicates from a result set?", "options": ["UNIQUE", "DISTINCT", "ONLY", "SINGLE"], "answer_index": 1},
+            {"question": "What does 'NLP' stand for?", "options": ["Natural Language Processing", "Neural Logic Programming", "Network Layer Protocol", "Normal Language Process"], "answer_index": 0}
+        ]
+
+        generic_fallback = [
+            {"question": f"In {full_topic}, what is a primary consideration for quality?", "options": ["Validation", "Randomness", "Manual Labor", "Ignoring errors"], "answer_index": 0},
+            {"question": f"Which tool is commonly used in {full_topic}?", "options": ["Standard Industry Tools", "Random Guessing", "Varies by project", "None"], "answer_index": 0},
+            {"question": f"Why is scalability important in {full_topic}?", "options": ["To handle growth", "To look good", "To waste space", "To increase cost"], "answer_index": 0},
+            {"question": f"What is a 'bottleneck' in {full_topic}?", "options": ["A constraint", "A feature", "A fast path", "A decoration"], "answer_index": 0},
+            {"question": f"How do professionals in {full_topic} handle errors?", "options": ["Monitoring and fixing", "Ignoring them", "Deleting code", "Asking users to fix"], "answer_index": 0},
+            {"question": f"What is the role of documentation in {full_topic}?", "options": ["Knowledge sharing", "Wasting time", "Increasing file size", "Hiding bugs"], "answer_index": 0},
+            {"question": f"Which principle is core to {full_topic}?", "options": ["Efficiency", "Complexity", "Manual work", "Randomness"], "answer_index": 0},
+            {"question": f"What is 'technical debt' in {full_topic}?", "options": ["Future cost of quick fixes", "Bank loans", "Salary", "Hardware cost"], "answer_index": 0},
+            {"question": f"What is 'version control' for?", "options": ["Tracking changes", "Blocking access", "Deleting files", "Increasing cost"], "answer_index": 0},
+            {"question": f"How is success measured in {full_topic}?", "options": ["Meeting requirements", "Number of files", "Lines of code", "Meeting count"], "answer_index": 0}
+        ]
+
+        if "physics" in full_topic.lower():
+            return physics_fallback[:count]
+        if "data science" in full_topic.lower() or "ds" == clean_topic:
+            return ds_fallback[:count]
+            
+        return generic_fallback[:count]
 
     if not model:
         return get_fallback()
@@ -313,8 +305,8 @@ def generate_quiz_questions(topic="software engineering", count=10):
     
     CRITICAL GUIDELINES:
     1. Questions MUST be deeply technical and STRICTLY related to the core concepts of '{full_topic}'.
-    2. If the topic is 'Physics', ask about specific laws (Newtonian, Thermodynamics, Electromagnetism), quantum mechanics, or relativity. DO NOT ask general questions.
-    3. If the topic is 'Data Science', ask about specific algorithms (Random Forest, SVM), statistical tests (p-values, chi-square), or data engineering patterns.
+    2. If the topic is 'Physics', ask about specific laws, equations, or physical phenomena. DO NOT ask general questions.
+    3. If the topic is 'Data Science', ask about specific algorithms, statistical tests, or data modeling techniques.
     4. Start with fundamental questions and progressively increase difficulty to advanced/expert levels. 
     5. Ensure options are plausible but only one is clearly correct.
     6. Random Seed for uniqueness: {uuid.uuid4()} - YOU MUST GENERATE A COMPLETELY UNIQUE AND NEW SET OF QUESTIONS EVERY TIME.
@@ -334,24 +326,18 @@ def generate_quiz_questions(topic="software engineering", count=10):
     - Return ONLY the JSON array, no markdown or commentary.
     """
     try:
+        from services.llm_service import extract_json
         response = model.generate_content(prompt)
         text = response.text.strip()
         
-        # Robust JSON extraction
-        if "```" in text:
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-            text = text.split("```")[0]
-        
-        start_idx = text.find('[')
-        end_idx = text.rfind(']')
-        if start_idx != -1 and end_idx != -1:
-            clean_text = text[start_idx:end_idx+1]
-        else:
-            clean_text = text
+        items = extract_json(text)
+        if not items or not isinstance(items, list):
+            # Try one more time if it's a dictionary instead of list
+            if isinstance(items, dict) and "questions" in items:
+                items = items["questions"]
+            else:
+                return get_fallback()
             
-        items = json.loads(clean_text.strip())
         cleaned = []
         for item in items:
             options = item.get("options", [])[:4]
@@ -368,7 +354,7 @@ def generate_quiz_questions(topic="software engineering", count=10):
                 "answer_index": answer_index,
             })
         
-        if not cleaned:
+        if len(cleaned) < 5:
             return get_fallback()
             
         return cleaned[:count]

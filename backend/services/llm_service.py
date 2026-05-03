@@ -6,17 +6,54 @@ from flask import current_app
 def get_llm_model():
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key or api_key == "your_gemini_api_key_here":
-        print("Warning: GOOGLE_API_KEY is missing or placeholder. LLM features will be disabled.")
+        # Log to console so the developer knows why it's failing
+        print("!!! ERROR: GOOGLE_API_KEY is missing or is the default placeholder !!!")
+        print("!!! Quiz generation will fall back to hardcoded questions !!!")
         return None
     
     try:
         genai.configure(api_key=api_key)
-        # Use gemini-1.5-flash for better performance and reliability
+        # Use gemini-1.5-flash - verify this is the correct model name for the user's tier
         model = genai.GenerativeModel('gemini-1.5-flash')
         return model
     except Exception as e:
-        print(f"Error initializing Gemini Model: {e}")
+        print(f"!!! Error initializing Gemini Model: {e} !!!")
         return None
+
+def extract_json(text):
+    """Robustly extract JSON from AI response text."""
+    try:
+        # 1. Try direct parsing
+        return json.loads(text.strip())
+    except:
+        pass
+
+    # 2. Try cleaning markdown code blocks
+    clean_text = text.strip()
+    if "```" in clean_text:
+        # Extract content between first and last ```
+        parts = clean_text.split("```")
+        for part in parts:
+            if "[" in part or "{" in part:
+                # Potential JSON inside
+                inner = part.strip()
+                if inner.startswith("json"): inner = inner[4:].strip()
+                try:
+                    return json.loads(inner)
+                except:
+                    continue
+
+    # 3. Find first [ or { and last ] or }
+    start_bracket = min([i for i, c in enumerate(clean_text) if c in "[{"] or [0])
+    end_bracket = max([i for i, c in enumerate(clean_text) if c in "]}"] or [len(clean_text)])
+    
+    if start_bracket < end_bracket:
+        try:
+            return json.loads(clean_text[start_bracket:end_bracket+1])
+        except:
+            pass
+            
+    return None
 
 def get_ai_evaluation(question, answer):
     model = get_llm_model()
@@ -46,23 +83,8 @@ def get_ai_evaluation(question, answer):
     
     try:
         response = model.generate_content(prompt)
-        text = response.text.strip()
-        
-        # Robust JSON extraction
-        if "```" in text:
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-            text = text.split("```")[0]
-            
-        start_idx = text.find('{')
-        end_idx = text.rfind('}')
-        if start_idx != -1 and end_idx != -1:
-            clean_text = text[start_idx:end_idx+1]
-        else:
-            clean_text = text
-            
-        return json.loads(clean_text.strip())
+        result = extract_json(response.text)
+        return result
     except Exception as e:
         print(f"Error calling Gemini API for evaluation: {e}")
         return None
