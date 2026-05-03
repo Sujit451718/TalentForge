@@ -20,9 +20,8 @@ def get_llm_model():
     
     try:
         genai.configure(api_key=api_key)
-        # We use gemini-1.5-flash as the primary high-speed model
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        # Test a very simple generation to confirm true connectivity
+        # Use gemini-pro as it is the most stable and widely supported model name
+        model = genai.GenerativeModel('gemini-pro')
         return model
     except Exception as e:
         print(f"!!! CRITICAL: Failed to initialize Google AI Studio API: {e} !!!")

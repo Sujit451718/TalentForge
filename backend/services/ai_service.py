@@ -26,6 +26,14 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
     limit = 4 if plan_type == "premium" else 2
     level = experience_level or "Mid"
 
+    # Define high-quality manual fallback questions for interviews
+    manual_interview_questions = [
+        {"question": f"Explain the core architectural principles you follow when building a {role} system.", "context": "System Architecture", "expected_keywords": ["scalability", "maintainability", "security"]},
+        {"question": f"Walk me through a complex technical challenge you faced while working as a {role} and how you resolved it.", "context": "Problem Solving", "expected_keywords": ["approach", "solution", "outcome"]},
+        {"question": f"How do you handle performance optimization and bottleneck identification in a {role} environment?", "context": "Optimization", "expected_keywords": ["profiling", "latency", "throughput"]},
+        {"question": f"Describe your testing strategy for ensuring the reliability of a {role} project.", "context": "Quality Assurance", "expected_keywords": ["unit test", "integration", "coverage"]}
+    ]
+
     if use_resume and resume_questions:
         return [
             {
@@ -36,33 +44,24 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
             for item in resume_questions
         ]
 
-    questions = []
-
     if not model:
-        # If AI model is not available, we return a helpful message instead of generic questions
-        questions.append({
-            "question": "I apologize, but my AI neural network is currently offline. Please ensure the GOOGLE_API_KEY is correctly configured to start a dynamic interview.",
-            "context": "System Alert",
-            "expected_keywords": []
-        })
-        return questions
+        print(f"!!! API Key not working. Switching to Manual Interview Mode for {role} !!!")
+        return manual_interview_questions[:limit]
 
     prompt = f"""
     You are Jarvis, an elite technical interviewer. Generate {limit} highly unique, challenging, and EXTREMELY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
     
     CRITICAL GUIDELINES:
     1. Every single question MUST be deeply technical and specific to the '{role}' domain.
-    2. DO NOT ask generic introductory questions like "Tell me about yourself".
-    3. Start IMMEDIATELY with a technical probe or architecture scenario relevant to {role}.
-    4. Provide a 'context' explaining why this specific technical concept is crucial for a {role}.
-    5. Random Seed for uniqueness: {uuid.uuid4()}
+    2. Start IMMEDIATELY with a technical probe or architecture scenario relevant to {role}.
+    3. Random Seed: {uuid.uuid4()}
 
     Return a strict JSON array with this schema:
     [
       {{
-        "question": "Deeply technical question text",
-        "context": "Technical rationale for this question",
-        "expected_keywords": ["specific_tech_term1", "specific_tech_term2"]
+        "question": "Technical question text",
+        "context": "Rationale",
+        "expected_keywords": ["term1", "term2"]
       }}
     ]
     """
@@ -71,48 +70,46 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
         items = extract_json(response.text)
         
         if items and isinstance(items, list):
-            for item in items[:limit]:
-                questions.append({
-                    "question": item.get("question"),
-                    "context": item.get("context"),
-                    "expected_keywords": item.get("expected_keywords", [])
-                })
-        return questions
+            return items[:limit]
+        return manual_interview_questions[:limit]
     except Exception as e:
-        print(f"AI Interview Generation Error: {e}")
-        questions.append({
-            "question": "I encountered an error while generating dynamic questions. Please check your API connectivity.",
-            "context": "System Error",
-            "expected_keywords": []
-        })
-        return questions
+        print(f"AI Interview Error: {e}. Switching to Manual Mode.")
+        return manual_interview_questions[:limit]
 
 def evaluate_answer(question_text, user_answer, expected_keywords=None, premium=False):
-    # Always prioritize AI evaluation from llm_service
+    # Always try AI evaluation first
     if get_ai_evaluation:
-        llm_result = get_ai_evaluation(question_text, user_answer)
-        if llm_result and "score" in llm_result:
-            return {
-                "score": int(llm_result.get("score", 0)),
-                "feedback": llm_result.get("feedback", "AI evaluation completed."),
-                "strengths": llm_result.get("strengths", ["Good attempt with relevant coverage."]),
-                "weaknesses": llm_result.get("weaknesses", [llm_result.get("suggestions", "Add more specifics.")]),
-                "suggested_answer": llm_result.get("suggested_answer", llm_result.get("suggestions", "")),
-                "jarvis_response": llm_result.get("jarvis_response", "Thank you for your answer."),
-                "matched_keywords": [],
-                "missing_keywords": []
-            }
+        try:
+            llm_result = get_ai_evaluation(question_text, user_answer)
+            if llm_result and "score" in llm_result:
+                return {
+                    "score": int(llm_result.get("score", 0)),
+                    "feedback": llm_result.get("feedback", "AI evaluation completed."),
+                    "strengths": llm_result.get("strengths", ["Good attempt."]),
+                    "weaknesses": llm_result.get("weaknesses", ["Add more details."]),
+                    "suggested_answer": llm_result.get("suggested_answer", ""),
+                    "jarvis_response": llm_result.get("jarvis_response", "Interesting perspective."),
+                    "matched_keywords": [],
+                    "missing_keywords": []
+                }
+        except:
+            pass
 
-    # If AI fails, we no longer provide a 'fake' heuristic score. 
-    # We return a low score and a message indicating AI failure.
+    # Manual Fallback Evaluation Logic
+    print("!!! API Evaluation failing. Switching to Manual Evaluation Mode !!!")
+    expected_keywords = expected_keywords or ["technical", "process", "implementation"]
+    matched = [k for keyword in expected_keywords if (k := keyword.lower()) in user_answer.lower()]
+    score = 40 + (len(matched) * 10)
+    score = min(score, 85) # Cap manual score
+    
     return {
-        "score": 0,
-        "feedback": "AI Evaluation failed. Please check your Google AI Studio API key.",
-        "strengths": [],
-        "weaknesses": ["AI Service Unavailable"],
-        "suggested_answer": "Unable to generate suggestion without AI.",
-        "jarvis_response": "I'm having trouble analyzing your answer. Please check my API configuration.",
-        "matched_keywords": [],
+        "score": score,
+        "feedback": "Manual mode evaluation based on keyword coverage. Re-configure API key for detailed AI feedback.",
+        "strengths": ["Answered technical components."],
+        "weaknesses": ["Detailed AI analysis unavailable."],
+        "suggested_answer": "Focus on Star method: Situation, Task, Action, Result.",
+        "jarvis_response": "I've analyzed your answer using my manual protocols. Well done.",
+        "matched_keywords": matched,
         "missing_keywords": []
     }
 
