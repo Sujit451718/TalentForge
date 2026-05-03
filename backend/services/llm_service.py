@@ -216,22 +216,16 @@ def get_ats_score_evaluation(resume_text, target_role="Software Engineer"):
     try:
         response = model.generate_content(prompt)
         text = response.text.strip()
-        
-        # Robust JSON cleaning
-        if "```" in text:
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-            text = text.split("```")[0]
-            
-        start_idx = text.find('{')
-        end_idx = text.rfind('}')
-        if start_idx != -1 and end_idx != -1:
-            clean_text = text[start_idx:end_idx+1]
-        else:
-            clean_text = text
-            
-        return json.loads(clean_text)
+        result = extract_json(text)
+        if result:
+            return result
+        return {
+            "score": 0,
+            "found_keywords": [],
+            "missing_keywords": [],
+            "verdict": "Parsing Error",
+            "suggestions": ["The AI returned an invalid format. Please try again."]
+        }
     except Exception as e:
         error_msg = f"{str(e)} | Raw output: {text[:200]}..." if 'text' in locals() else str(e)
         print(f"Error generating ATS evaluation: {error_msg}")
