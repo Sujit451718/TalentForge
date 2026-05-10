@@ -81,4 +81,14 @@ export const interviewApi = {
 
 export const paymentApi = {
   simulate: () => api.post('/payment/simulate-payment'),
+  submitProof: (file) => {
+    const formData = new FormData();
+    formData.append('proof', file);
+    return api.post('/payment/submit-proof', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  myRequest: () => api.get('/payment/my-request'),
+  adminPending: () => api.get('/payment/admin/pending'),
+  adminVerify: (payload) => api.post('/payment/admin/verify', payload),
 };

@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from pymongo.errors import PyMongoError
 from config import Config
@@ -33,6 +33,10 @@ def create_app():
     app.register_blueprint(payment_bp, url_prefix='/api/payment')
     app.register_blueprint(payment_bp, url_prefix='/api', name='payment_api_alias')
     app.register_blueprint(payment_bp, url_prefix='', name='payment_root_alias')
+
+    @app.route('/uploads/payments/<path:filename>')
+    def serve_payment_proofs(filename):
+        return send_from_directory('uploads/payments', filename)
 
     @app.route('/')
     def index():
