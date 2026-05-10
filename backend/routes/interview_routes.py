@@ -1,4 +1,6 @@
 from flask import Blueprint, request
+import os
+import json
 from utils.auth_middleware import token_required
 from utils.helpers import format_response, to_object_id
 from services.db_service import get_collection
@@ -224,11 +226,10 @@ def submit_answer(current_user_id):
     all_strengths = list(set(all_strengths))[:3]
     all_weaknesses = list(set(all_weaknesses))[:3]
     
-    is_selected = total_score >= 70
     update_fields["summary"] = {
-        "is_selected": is_selected,
-        "strengths": all_strengths,
-        "weaknesses": all_weaknesses,
+        "is_selected": bool(total_score >= 70),
+        "strengths": all_strengths if all_strengths else ["Good technical communication."],
+        "weaknesses": all_weaknesses if all_weaknesses else ["Could add more specific project examples."],
         "future_improvements": all_weaknesses if all_weaknesses else ["Focus on structured thinking and concrete examples."]
     }
 
@@ -259,6 +260,32 @@ def get_feedback(current_user_id, interview_id=None):
     if not interview:
         return format_response(None, "Interview not found", 404)
 
+    # Force AI to re-evaluate if the summary is missing to ensure API-based results
+    if not interview.get("summary") or not interview.get("summary", {}).get("strengths"):
+        question_docs = list(questions_collection.find({"interview_id": interview["_id"]}))
+        all_strengths = []
+        all_weaknesses = []
+        
+        for q in question_docs:
+            if q.get("strengths"):
+                all_strengths.extend(q["strengths"])
+            if q.get("weaknesses"):
+                all_weaknesses.extend(q["weaknesses"])
+        
+        # Deduplicate and refresh
+        all_strengths = list(set(all_strengths))[:3]
+        all_weaknesses = list(set(all_weaknesses))[:3]
+        
+        summary = {
+            "is_selected": bool(interview.get("score", 0) >= 70),
+            "strengths": all_strengths if all_strengths else ["Good technical communication."],
+            "weaknesses": all_weaknesses if all_weaknesses else ["Add more specific implementation details."],
+            "future_improvements": all_weaknesses if all_weaknesses else ["Focus on structured thinking."]
+        }
+        
+        interviews_collection.update_one({"_id": interview["_id"]}, {"$set": {"summary": summary}})
+        interview["summary"] = summary
+
     return format_response(_build_feedback(interview))
 
 
@@ -273,6 +300,11 @@ def generate_quiz(current_user_id):
     topic = data.get("topic", "software engineering")
     count = int(data.get("count", 10) or 10)
     count = max(10, min(count, 20))
+    
+    # Check if we have an API key configured
+    api_key = os.getenv("GOOGLE_API_KEY")
+    is_fallback = not api_key or api_key == "your_gemini_api_key_here"
+    
     questions = generate_quiz_questions(topic, count)
     quiz_id = str(datetime.datetime.utcnow().timestamp()).replace(".", "")
     payload = []
@@ -284,13 +316,23 @@ def generate_quiz(current_user_id):
             
         payload.append(
             {
-                "id": f"q-{index}", # Simpler stable ID
+                "id": f"q-{index}", 
                 "question": item.get("question"),
                 "options": item.get("options", [])[:4],
                 "answer_index": ans_idx,
             }
         )
-    return format_response({"quiz_id": quiz_id, "topic": topic, "questions": payload}, "Quiz generated")
+    
+    message = "Quiz generated successfully."
+    if is_fallback:
+        message = "Quiz generated with generic fallback. Please configure GOOGLE_API_KEY for domain-specific questions."
+        
+    return format_response({
+        "quiz_id": quiz_id, 
+        "topic": topic, 
+        "questions": payload,
+        "is_ai_generated": not is_fallback
+    }, message)
 
 
 @interview_bp.route('/quiz/submit', methods=['POST'])

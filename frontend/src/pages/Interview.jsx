@@ -67,7 +67,9 @@ export default function Interview() {
         })),
       };
       const response = await interviewApi.submit(payload);
-      navigate(`/feedback/${response.data.data.interview_id}`);
+      const interviewData = response.data.data;
+      // We pass the data to navigation so feedback page shows it immediately
+      navigate(`/feedback/${interviewData.interview_id}`, { state: { feedbackData: interviewData } });
     } catch (err) {
       setError(getApiError(err));
     } finally {
