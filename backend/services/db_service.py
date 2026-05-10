@@ -11,8 +11,9 @@ from pymongo.errors import PyMongoError
 
 from config import Config
 
-client = MongoClient(Config.MONGO_URI, serverSelectionTimeoutMS=3000)
-db = client[Config.DB_NAME]
+# Defer client initialization to init_db
+client = None
+db = None
 
 _USE_LOCAL_DB = False
 _DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "local_demo_db.json"
@@ -217,9 +218,11 @@ def _seed_admin(collection):
 
 def init_db():
     """Initialize MongoDB indexes and seed data."""
-    global _USE_LOCAL_DB
+    global client, db, _USE_LOCAL_DB
 
     try:
+        client = MongoClient(Config.MONGO_URI, serverSelectionTimeoutMS=3000)
+        db = client[Config.DB_NAME]
         client.admin.command("ping")
         _USE_LOCAL_DB = False
         db.users.create_index([("email", ASCENDING)], unique=True)
