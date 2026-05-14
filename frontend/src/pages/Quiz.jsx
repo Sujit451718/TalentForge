@@ -201,7 +201,7 @@ export default function Quiz() {
     setShowCheatWarning(false);
     
     try {
-      const actualTopic = domain === 'Custom' ? customDomain : domain;
+      const actualTopic = (domain === 'Custom' ? customDomain : domain).trim();
       // We pass difficulty inside the topic for the LLM to understand
       const promptTopic = `${actualTopic} (Difficulty: ${difficulty})`;
       
@@ -419,7 +419,7 @@ export default function Quiz() {
             <button 
               className="gradient-button w-full !h-14 !text-lg !rounded-2xl" 
               onClick={startBattle} 
-              disabled={loading || (domain === 'Custom' && !customDomain)}
+              disabled={loading || (domain === 'Custom' && !customDomain.trim())}
             >
               {loading ? <Spinner label="Summoning Arena..." /> : <><Swords className="h-5 w-5 mr-2" /> Enter Battle</>}
             </button>

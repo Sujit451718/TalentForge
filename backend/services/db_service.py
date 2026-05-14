@@ -17,7 +17,7 @@ db = None
 
 _USE_LOCAL_DB = False
 _DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "local_demo_db.json"
-_COLLECTIONS = ("users", "interviews", "questions", "quiz_attempts", "platform_feedback")
+_COLLECTIONS = ("users", "interviews", "questions", "quiz_attempts", "platform_feedback", "question_bank")
 
 
 def _encode_value(value):
@@ -76,10 +76,14 @@ def _values_equal(left, right):
 def _match_operator(value, operator, expected):
     if operator == "$gte":
         return value >= expected
+    if operator == "$lt":
+        return value < expected
     if operator == "$in":
         expected_values = {str(item) if isinstance(item, ObjectId) else item for item in expected}
         value = str(value) if isinstance(value, ObjectId) else value
         return value in expected_values
+    if operator == "$ne":
+        return not _values_equal(value, expected)
     return False
 
 
@@ -157,7 +161,7 @@ class LocalCollection:
         _save_local_data(data)
         return SimpleNamespace(inserted_ids=inserted_ids)
 
-    def update_one(self, query, update):
+    def update_one(self, query, update, upsert=False):
         data = _load_local_data()
         documents = data.setdefault(self.name, [])
         for index, raw_document in enumerate(documents):
@@ -171,6 +175,19 @@ class LocalCollection:
             documents[index] = _encode_value(document)
             _save_local_data(data)
             return SimpleNamespace(matched_count=1, modified_count=1)
+        if upsert:
+            document = {}
+            for key, value in (query or {}).items():
+                if not isinstance(value, dict):
+                    document[key] = value
+            for key, value in update.get("$set", {}).items():
+                document[key] = value
+            for key, value in update.get("$inc", {}).items():
+                document[key] = document.get(key, 0) + value
+            document.setdefault("_id", ObjectId())
+            documents.append(_encode_value(document))
+            _save_local_data(data)
+            return SimpleNamespace(matched_count=0, modified_count=1, upserted_id=document["_id"])
         return SimpleNamespace(matched_count=0, modified_count=0)
 
 
@@ -228,6 +245,7 @@ def init_db():
         db.users.create_index([("email", ASCENDING)], unique=True)
         db.interviews.create_index([("user_id", ASCENDING), ("created_at", ASCENDING)])
         db.questions.create_index([("interview_id", ASCENDING)])
+        db.question_bank.create_index([("domain", ASCENDING), ("bank_category", ASCENDING)])
         _seed_admin(db.users)
         print(f"Connected to MongoDB database: {Config.DB_NAME}")
     except Exception as exc:

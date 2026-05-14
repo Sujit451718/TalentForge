@@ -1,4 +1,4 @@
-import { AlertTriangle, BrainCircuit, Camera, Mic, MicOff, Power, Shield, StopCircle, Video, Volume2 } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, Mic, MicOff, Shield, StopCircle, Video, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner.jsx';
@@ -7,6 +7,7 @@ import { getApiError, interviewApi } from '../services/api.js';
 export default function JarvisMode() {
   const navigate = useNavigate();
   const videoRef = useRef(null);
+  const recognitionRef = useRef(null);
   
   // States
   const [gameState, setGameState] = useState('setup'); // 'setup' | 'permission' | 'active'
@@ -27,6 +28,8 @@ export default function JarvisMode() {
   const [loading, setLoading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [lastFeedback, setLastFeedback] = useState(null);
+  const [currentPrompt, setCurrentPrompt] = useState('');
+  const [jarvisLine, setJarvisLine] = useState('');
   
   // Setup
   const [role, setRole] = useState('Software Engineer');
@@ -35,14 +38,21 @@ export default function JarvisMode() {
   // Anti-cheat
   const [cheatWarning, setCheatWarning] = useState(false);
 
-  // Initialize Speech Recognition
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const recognition = SpeechRecognition ? new SpeechRecognition() : null;
-  if (recognition) {
+  const speechSupported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  useEffect(() => {
+    if (!speechSupported) return undefined;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
-  }
+    recognitionRef.current = recognition;
+    return () => {
+      try { recognition.stop(); } catch (err) {}
+      recognitionRef.current = null;
+    };
+  }, [speechSupported]);
 
   // Effect to handle video stream mapping
   useEffect(() => {
@@ -57,7 +67,7 @@ export default function JarvisMode() {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
-      if (recognition) recognition.stop();
+      if (recognitionRef.current) recognitionRef.current.stop();
       if (window.speechSynthesis) window.speechSynthesis.cancel();
     };
   }, [stream]);
@@ -99,7 +109,13 @@ export default function JarvisMode() {
         setSession(data);
         
         // Start the conversation
-        setTimeout(() => jarvisSpeak("Hello. I am Jarvis, your AI interviewer. Let's begin.", () => askQuestion(data.questions[0].question)), 1000);
+        const firstQuestion = data.questions?.[0]?.question || 'To start, please introduce yourself and connect your background to this role.';
+        setTimeout(() => {
+          jarvisSpeak(
+            `Hello. I am Jarvis, your AI interviewer for this ${role} round. We will begin like a real MNC interview: first, your self introduction.`,
+            () => askQuestion(firstQuestion)
+          );
+        }, 1000);
       } catch (apiErr) {
         // Stop the stream if backend fails
         mediaStream.getTracks().forEach(t => t.stop());
@@ -115,14 +131,18 @@ export default function JarvisMode() {
   };
 
   const jarvisSpeak = (text, onEndCallback) => {
-    if (!window.speechSynthesis) return;
+    setJarvisLine(text);
+    if (!window.speechSynthesis) {
+      if (onEndCallback) onEndCallback();
+      return;
+    }
     
     // Crucial: cancel any stuck or pending speech
     window.speechSynthesis.cancel();
     
     setIsJarvisSpeaking(true);
     setIsUserSpeaking(false);
-    if (recognition) recognition.stop();
+    if (recognitionRef.current) recognitionRef.current.stop();
     
     const utterance = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
@@ -144,12 +164,14 @@ export default function JarvisMode() {
   };
 
   const askQuestion = (qText) => {
+    setCurrentPrompt(qText);
     jarvisSpeak(qText, () => {
       startListeningForAnswer();
     });
   };
 
   const startListeningForAnswer = () => {
+    const recognition = recognitionRef.current;
     if (!recognition) return;
     setIsUserSpeaking(true);
     setTranscript('');
@@ -182,7 +204,7 @@ export default function JarvisMode() {
   };
 
   const finishAnswering = async () => {
-    if (recognition) recognition.stop();
+    if (recognitionRef.current) recognitionRef.current.stop();
     setIsUserSpeaking(false);
     
     const finalAnswer = (transcript + ' ' + interimTranscript).trim();
@@ -215,6 +237,9 @@ export default function JarvisMode() {
         if (evaluatedQ && evaluatedQ.weaknesses && evaluatedQ.weaknesses.length > 0) {
           feedbackSpeech += ` An area to improve is ${evaluatedQ.weaknesses[0]}.`;
         }
+      }
+      if (evaluatedQ?.follow_up_question) {
+        feedbackSpeech += ` A real panel may follow up with: ${evaluatedQ.follow_up_question}`;
       }
       
       setEvaluating(false);
@@ -255,7 +280,7 @@ export default function JarvisMode() {
   };
 
   const terminateInterview = (reason) => {
-    if (recognition) recognition.stop();
+    if (recognitionRef.current) recognitionRef.current.stop();
     window.speechSynthesis.cancel();
     if (stream) stream.getTracks().forEach(t => t.stop());
     setNotice(reason);
@@ -273,7 +298,7 @@ export default function JarvisMode() {
         Anti-cheat is strictly enforced. No tab switching allowed.
       </p>
       
-      {!SpeechRecognition && (
+      {!speechSupported && (
         <div className="bg-pink-500/10 border border-pink-500/20 text-pink-400 p-4 rounded-xl mb-6 text-sm">
           Your browser does not support the Web Speech API. Please use Google Chrome for Jarvis Mode.
         </div>
@@ -304,7 +329,7 @@ export default function JarvisMode() {
       <button 
         className="gradient-button w-full !h-16 !text-xl !rounded-2xl shadow-cyan-500/20"
         onClick={requestPermissionsAndStart}
-        disabled={loading || !SpeechRecognition}
+        disabled={loading || !speechSupported}
       >
         {loading ? <Spinner label="Initializing Jarvis..." /> : <><Video className="h-6 w-6 mr-2" /> Start Live Interview</>}
       </button>
@@ -362,6 +387,17 @@ export default function JarvisMode() {
                 "Listen to Jarvis carefully..."
               </p>
             </div>
+          </div>
+          <div className="absolute left-4 right-4 top-4 rounded-2xl border border-white/10 bg-slate-950/70 p-4 backdrop-blur-md">
+            <p className="label mb-2 text-cyan-300">Current Interview Prompt</p>
+            <p className="text-sm font-semibold leading-relaxed text-white">
+              {currentPrompt || 'Jarvis is preparing your first question...'}
+            </p>
+            {jarvisLine && (
+              <p className="mt-3 line-clamp-2 text-xs font-medium italic text-slate-400">
+                {jarvisLine}
+              </p>
+            )}
           </div>
         </div>
       </div>

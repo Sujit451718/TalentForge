@@ -44,12 +44,20 @@ def _get_from_question_bank(domain, category, limit=5):
         return []
 
 try:
-    from services.llm_service import get_ai_evaluation, get_llm_model, generate_questions_from_resume as ai_generate_questions_from_resume, extract_json, chatbot_reply_ai
+    from services.llm_service import (
+        get_ai_evaluation,
+        get_llm_model,
+        generate_questions_from_resume as ai_generate_questions_from_resume,
+        generate_interview_summary as ai_generate_interview_summary,
+        extract_json,
+        chatbot_reply_ai,
+    )
 except Exception as e:
     print(f"Error importing llm_service functions: {e}")
     get_ai_evaluation = None
     get_llm_model = None
     ai_generate_questions_from_resume = None
+    ai_generate_interview_summary = None
     extract_json = None
     chatbot_reply_ai = None
 
@@ -251,9 +259,9 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
     level = experience_level or "Mid"
     questions = [
         {
-            "question": "To start, please tell me about yourself and your background.",
-            "context": "Introductory icebreaker",
-            "expected_keywords": ["experience", "background", "skills", "projects", "role"]
+            "question": f"To start, please introduce yourself and connect your background to the {role} role.",
+            "context": "Mandatory first-round self introduction",
+            "expected_keywords": ["experience", "background", "skills", "projects", "role", role_key]
         }
     ]
 
@@ -262,13 +270,15 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
     if model and not (use_resume and resume_questions):
         import uuid
         prompt = f"""
-        You are an elite technical interviewer. Generate {limit} highly unique, challenging, and STRICTLY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
+        You are an elite MNC technical interviewer. Generate {limit} highly unique, challenging, and STRICTLY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
         
         CRITICAL GUIDELINES:
         1. The questions MUST be deeply technical and specific to the '{role}' domain.
         2. DO NOT ask generic behavioral or general software engineering questions if '{role}' is a specialized field.
-        3. Provide a 'context' explaining why this specific technical concept is crucial for a {role}.
-        4. Random Seed for uniqueness: {uuid.uuid4()}
+        3. Mix realistic MNC interview signals: fundamentals, practical debugging, system/design tradeoffs, and production readiness.
+        4. Provide a 'context' explaining why this specific technical concept is crucial for a {role}.
+        5. Do not include a self-introduction question; the system always asks that first.
+        6. Random Seed for uniqueness: {uuid.uuid4()}
 
         Return a strict JSON array with this schema:
         [
@@ -325,9 +335,25 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
         })
     return questions
 
-def evaluate_answer(question_text, user_answer, expected_keywords=None, premium=False):
+def evaluate_answer(
+    question_text,
+    user_answer,
+    expected_keywords=None,
+    premium=False,
+    role="Software Engineer",
+    experience_level="Mid",
+    question_context=None,
+    is_intro=False,
+):
     if get_ai_evaluation:
-        llm_result = get_ai_evaluation(question_text, user_answer)
+        llm_result = get_ai_evaluation(
+            question_text,
+            user_answer,
+            role=role,
+            experience_level=experience_level,
+            question_context=question_context,
+            is_intro=is_intro,
+        )
         if llm_result and "score" in llm_result:
             return {
                 "score": int(llm_result.get("score", 0)),
@@ -336,6 +362,8 @@ def evaluate_answer(question_text, user_answer, expected_keywords=None, premium=
                 "weaknesses": llm_result.get("weaknesses", [llm_result.get("suggestions", "Add more specifics.")]),
                 "suggested_answer": llm_result.get("suggested_answer", llm_result.get("suggestions", "")),
                 "jarvis_response": llm_result.get("jarvis_response", "Thank you for your answer."),
+                "follow_up_question": llm_result.get("follow_up_question", ""),
+                "hiring_signal": llm_result.get("hiring_signal", "mixed"),
                 "matched_keywords": [],
                 "missing_keywords": []
             }
@@ -353,6 +381,8 @@ def evaluate_answer(question_text, user_answer, expected_keywords=None, premium=
     score = max(0, min(100, round(keyword_score + length_score + specificity_score)))
 
     strengths = []
+    if is_intro and len(answer_tokens) >= 35:
+        strengths.append(f"Introduced a useful background for the {role} interview.")
     if matched:
         strengths.append(f"Covered important concepts: {', '.join(matched[:4])}.")
     if len(answer_tokens) >= 45:
@@ -366,12 +396,20 @@ def evaluate_answer(question_text, user_answer, expected_keywords=None, premium=
     if missing:
         weaknesses.append(f"Could strengthen coverage of: {', '.join(missing[:4])}.")
     if len(answer_tokens) < 35:
-        weaknesses.append("The answer is brief; add implementation details and a concrete example.")
+        if is_intro:
+            weaknesses.append("The introduction is brief; add your strongest project, domain skills, and target-role motivation.")
+        else:
+            weaknesses.append("The answer is brief; add implementation details and a concrete example.")
     if not any(term in answer_counter for term in ["test", "monitor", "risk", "tradeoff"]):
         weaknesses.append("Mention validation, tradeoffs, or operational concerns for a stronger response.")
 
     suggested_answer = build_suggested_answer(question_text, expected_keywords)
     feedback = "Strong answer." if score >= 80 else "Good foundation; add depth." if score >= 55 else "Needs more technical detail and examples."
+    jarvis_response = (
+        f"Thank you. Your introduction gives me a starting signal for {role}; strengthen it with sharper project impact and role fit."
+        if is_intro
+        else f"Thank you. I heard the core idea; now make it stronger with {role}-specific implementation detail."
+    )
 
     return {
         "score": score,
@@ -379,6 +417,9 @@ def evaluate_answer(question_text, user_answer, expected_keywords=None, premium=
         "strengths": strengths,
         "weaknesses": weaknesses,
         "suggested_answer": suggested_answer,
+        "jarvis_response": jarvis_response,
+        "follow_up_question": build_follow_up_question(question_text, expected_keywords, role),
+        "hiring_signal": "strong" if score >= 80 else "mixed" if score >= 55 else "weak",
         "matched_keywords": matched,
         "missing_keywords": missing
     }
@@ -390,7 +431,92 @@ def build_suggested_answer(question_text, expected_keywords):
         "to a concrete project scenario, mention risks or tradeoffs, and finish with how you would validate the solution."
     )
 
+
+def build_follow_up_question(question_text, expected_keywords, role):
+    concept = expected_keywords[0] if expected_keywords else "that approach"
+    return f"If I asked one follow-up as a {role} interviewer: how would you prove {concept} works in production?"
+
+
+def build_interview_summary(role, experience_level, total_score, question_docs, previous_interview=None):
+    question_results = [
+        {
+            "question": item.get("question"),
+            "answer": item.get("answer", ""),
+            "score": item.get("score", 0),
+            "strengths": item.get("strengths", []),
+            "weaknesses": item.get("weaknesses", []),
+        }
+        for item in question_docs
+        if item.get("answer")
+    ]
+
+    previous_context = None
+    if previous_interview:
+        previous_context = {
+            "role": previous_interview.get("role"),
+            "score": previous_interview.get("score", 0),
+            "summary": previous_interview.get("summary", {}),
+            "created_at": previous_interview.get("created_at"),
+        }
+
+    if ai_generate_interview_summary:
+        ai_summary = ai_generate_interview_summary(
+            role,
+            experience_level,
+            total_score,
+            question_results,
+            previous_context=previous_context,
+        )
+        if ai_summary:
+            return ai_summary
+
+    all_strengths = []
+    all_weaknesses = []
+    for question in question_results:
+        all_strengths.extend(question.get("strengths") or [])
+        all_weaknesses.extend(question.get("weaknesses") or [])
+
+    strengths = list(dict.fromkeys(all_strengths))[:3] or [f"Shows a foundation for {role} interview conversation."]
+    weaknesses = list(dict.fromkeys(all_weaknesses))[:3] or ["Needs more measurable examples and deeper technical justification."]
+    improvements = weaknesses[:3] or ["Practice STAR-style answers with implementation details, tradeoffs, and outcomes."]
+
+    if previous_interview:
+        delta = round((total_score or 0) - (previous_interview.get("score", 0) or 0), 2)
+        if delta > 0:
+            comparison = f"Improved by {delta} points from the last interview."
+        elif delta < 0:
+            comparison = f"Score dropped by {abs(delta)} points from the last interview; revisit the weaker answers before the next round."
+        else:
+            comparison = "Performance is flat compared with the last interview; focus on adding stronger examples to move the score."
+    else:
+        comparison = "This is the baseline interview. Future reports will compare progress against this attempt."
+
+    return {
+        "is_selected": bool(total_score >= 70),
+        "overall_feedback": (
+            f"For the {experience_level} {role} interview, your score is {total_score}%. "
+            "The strongest answers should combine clear structure, domain concepts, concrete project evidence, and validation."
+        ),
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "future_improvements": improvements,
+        "improvement_from_last_interview": comparison,
+        "hiring_recommendation": "strong_proceed" if total_score >= 85 else "proceed" if total_score >= 70 else "hold" if total_score >= 55 else "reject",
+    }
+
 def generate_questions_from_resume(resume_text):
+    if ai_generate_questions_from_resume:
+        ai_questions = ai_generate_questions_from_resume(resume_text)
+        if ai_questions:
+            cleaned = []
+            for item in ai_questions[:5]:
+                cleaned.append({
+                    "question": item.get("question") or item.get("text") or "Tell me about a resume project you are proud of.",
+                    "context": item.get("context", "Generated from resume using AI"),
+                    "expected_keywords": item.get("expected_keywords", ["project", "impact", "tradeoff"]),
+                })
+            return cleaned
+
     skill_terms = [
         "react", "angular", "python", "flask", "django", "mongodb", "mysql", "aws",
         "docker", "kubernetes", "node", "typescript", "machine learning", "nlp",
@@ -418,9 +544,9 @@ def generate_questions_from_resume(resume_text):
     return questions[:5]
 
 
-def chatbot_reply(message):
+def chatbot_reply(message, context=None):
     if chatbot_reply_ai:
-        return chatbot_reply_ai(message)
+        return chatbot_reply_ai(message, context=context or "general")
         
     text = (message or "").strip().lower()
     if not text:

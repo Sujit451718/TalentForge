@@ -4,7 +4,12 @@ import json
 from utils.auth_middleware import token_required
 from utils.helpers import format_response, to_object_id
 from services.db_service import get_collection
-from services.ai_service import evaluate_answer, generate_interview_questions, generate_quiz_questions
+from services.ai_service import (
+    build_interview_summary,
+    evaluate_answer,
+    generate_interview_questions,
+    generate_quiz_questions,
+)
 from config import Config
 import datetime
 try:
@@ -31,6 +36,7 @@ def _remaining_attempts(user_id):
 def _question_payload(question_doc):
     return {
         "id": str(question_doc["_id"]),
+        "question_number": question_doc.get("question_number"),
         "question": question_doc["question"],
         "context": question_doc.get("context"),
         "score": question_doc.get("score"),
@@ -39,11 +45,78 @@ def _question_payload(question_doc):
         "strengths": question_doc.get("strengths", []),
         "weaknesses": question_doc.get("weaknesses", []),
         "suggested_answer": question_doc.get("suggested_answer", ""),
-        "jarvis_response": question_doc.get("jarvis_response")
+        "jarvis_response": question_doc.get("jarvis_response"),
+        "follow_up_question": question_doc.get("follow_up_question", ""),
+        "hiring_signal": question_doc.get("hiring_signal", "mixed"),
+        "matched_keywords": question_doc.get("matched_keywords", []),
+        "missing_keywords": question_doc.get("missing_keywords", []),
     }
 
+
+def _question_docs_for_interview(interview_id):
+    return list(questions_collection.find({"interview_id": interview_id}).sort("question_number", 1))
+
+
+def _previous_completed_interview(interview):
+    query = {
+        "user_id": interview.get("user_id"),
+        "_id": {"$ne": interview.get("_id")},
+        "status": "completed",
+    }
+    if interview.get("created_at"):
+        query["created_at"] = {"$lt": interview.get("created_at")}
+
+    previous = interviews_collection.find_one(query, sort=[("created_at", -1)])
+    if previous:
+        return previous
+
+    fallback_query = {
+        "user_id": interview.get("user_id"),
+        "_id": {"$ne": interview.get("_id")},
+        "status": "completed",
+    }
+    return interviews_collection.find_one(fallback_query, sort=[("created_at", -1)])
+
+
+def _comparison_payload(interview, previous):
+    if not previous:
+        return {
+            "has_previous": False,
+            "message": "This is the baseline interview. Future reports will show improvement from this attempt.",
+        }
+
+    current_score = interview.get("score", 0) or 0
+    previous_score = previous.get("score", 0) or 0
+    delta = round(current_score - previous_score, 2)
+    trend = "improved" if delta > 0 else "declined" if delta < 0 else "unchanged"
+    return {
+        "has_previous": True,
+        "previous_interview_id": str(previous.get("_id")),
+        "previous_role": previous.get("role"),
+        "previous_score": previous_score,
+        "score_delta": delta,
+        "trend": trend,
+    }
+
+
+def _refresh_interview_summary(interview):
+    question_docs = _question_docs_for_interview(interview["_id"])
+    previous = _previous_completed_interview(interview)
+    summary = build_interview_summary(
+        interview.get("role", "Software Engineer"),
+        interview.get("experience_level", "Mid"),
+        interview.get("score", 0),
+        question_docs,
+        previous_interview=previous,
+    )
+    interviews_collection.update_one({"_id": interview["_id"]}, {"$set": {"summary": summary}})
+    interview["summary"] = summary
+    return summary
+
+
 def _build_feedback(interview):
-    question_docs = list(questions_collection.find({"interview_id": interview["_id"]}))
+    question_docs = _question_docs_for_interview(interview["_id"])
+    previous = _previous_completed_interview(interview)
     return {
         "interview_id": str(interview["_id"]),
         "role": interview.get("role"),
@@ -56,7 +129,8 @@ def _build_feedback(interview):
         "analytics": {
             "best_question_score": max([item.get("score", 0) or 0 for item in question_docs], default=0),
             "questions_answered": len([item for item in question_docs if item.get("answer")]),
-            "focus_area": "Add more examples and measurable outcomes" if interview.get("score", 0) < 75 else "Practice concise delivery under time pressure"
+            "focus_area": "Add more examples and measurable outcomes" if interview.get("score", 0) < 75 else "Practice concise delivery under time pressure",
+            "comparison": _comparison_payload(interview, previous),
         },
         "summary": interview.get("summary")
     }
@@ -182,7 +256,11 @@ def submit_answer(current_user_id):
             question_doc.get("question"),
             answer,
             expected_keywords=question_doc.get("expected_keywords", []),
-            premium=interview.get("plan_type") == "premium"
+            premium=interview.get("plan_type") == "premium",
+            role=interview.get("role", "Software Engineer"),
+            experience_level=interview.get("experience_level", "Mid"),
+            question_context=question_doc.get("context"),
+            is_intro=question_doc.get("question_number") == 1,
         )
         update_doc = {
             "answer": answer,
@@ -192,6 +270,8 @@ def submit_answer(current_user_id):
             "weaknesses": evaluation["weaknesses"],
             "suggested_answer": evaluation["suggested_answer"],
             "jarvis_response": evaluation.get("jarvis_response"),
+            "follow_up_question": evaluation.get("follow_up_question", ""),
+            "hiring_signal": evaluation.get("hiring_signal", "mixed"),
             "matched_keywords": evaluation["matched_keywords"],
             "missing_keywords": evaluation["missing_keywords"],
             "answered_at": datetime.datetime.utcnow()
@@ -203,7 +283,7 @@ def submit_answer(current_user_id):
     if not evaluated_questions:
         return format_response(None, "No valid answers submitted", 400)
 
-    all_questions = list(questions_collection.find({"interview_id": interview_object_id}))
+    all_questions = _question_docs_for_interview(interview_object_id)
     answered_scores = [item.get("score") for item in all_questions if item.get("score") is not None]
     total_score = round(sum(answered_scores) / len(answered_scores), 2) if answered_scores else 0
     status = "completed" if len(answered_scores) == len(all_questions) else "in-progress"
@@ -211,39 +291,29 @@ def submit_answer(current_user_id):
     update_fields = {
         "score": total_score,
         "status": status,
-        "completed_at": datetime.datetime.utcnow() if status == "completed" else None
     }
-    
-    all_strengths = []
-    all_weaknesses = []
-    for q in all_questions:
-        if q.get("strengths"):
-            all_strengths.extend(q["strengths"])
-        if q.get("weaknesses"):
-            all_weaknesses.extend(q["weaknesses"])
-    
-    # Deduplicate
-    all_strengths = list(set(all_strengths))[:3]
-    all_weaknesses = list(set(all_weaknesses))[:3]
-    
-    update_fields["summary"] = {
-        "is_selected": bool(total_score >= 70),
-        "strengths": all_strengths if all_strengths else ["Good technical communication."],
-        "weaknesses": all_weaknesses if all_weaknesses else ["Could add more specific project examples."],
-        "future_improvements": all_weaknesses if all_weaknesses else ["Focus on structured thinking and concrete examples."]
-    }
+    if status == "completed":
+        update_fields["completed_at"] = datetime.datetime.utcnow()
+
+    summary = build_interview_summary(
+        interview.get("role", "Software Engineer"),
+        interview.get("experience_level", "Mid"),
+        total_score,
+        all_questions,
+        previous_interview=_previous_completed_interview(interview),
+    )
+    update_fields["summary"] = summary
 
     interviews_collection.update_one(
         {"_id": interview_object_id},
         {"$set": update_fields}
     )
 
-    return format_response({
-        "interview_id": interview_id,
-        "total_score": total_score,
-        "status": status,
-        "questions": evaluated_questions
-    }, "Answer evaluated successfully")
+    updated_interview = interviews_collection.find_one({"_id": interview_object_id, "user_id": user_id})
+    feedback_payload = _build_feedback(updated_interview)
+    feedback_payload["evaluated_question_ids"] = [item["id"] for item in evaluated_questions]
+
+    return format_response(feedback_payload, "Answer evaluated successfully")
 
 @interview_bp.route('/feedback/<interview_id>', methods=['GET'])
 @interview_bp.route('/feedback', methods=['GET'])
@@ -262,29 +332,7 @@ def get_feedback(current_user_id, interview_id=None):
 
     # Force AI to re-evaluate if the summary is missing to ensure API-based results
     if not interview.get("summary") or not interview.get("summary", {}).get("strengths"):
-        question_docs = list(questions_collection.find({"interview_id": interview["_id"]}))
-        all_strengths = []
-        all_weaknesses = []
-        
-        for q in question_docs:
-            if q.get("strengths"):
-                all_strengths.extend(q["strengths"])
-            if q.get("weaknesses"):
-                all_weaknesses.extend(q["weaknesses"])
-        
-        # Deduplicate and refresh
-        all_strengths = list(set(all_strengths))[:3]
-        all_weaknesses = list(set(all_weaknesses))[:3]
-        
-        summary = {
-            "is_selected": bool(interview.get("score", 0) >= 70),
-            "strengths": all_strengths if all_strengths else ["Good technical communication."],
-            "weaknesses": all_weaknesses if all_weaknesses else ["Add more specific implementation details."],
-            "future_improvements": all_weaknesses if all_weaknesses else ["Focus on structured thinking."]
-        }
-        
-        interviews_collection.update_one({"_id": interview["_id"]}, {"$set": {"summary": summary}})
-        interview["summary"] = summary
+        _refresh_interview_summary(interview)
 
     return format_response(_build_feedback(interview))
 

@@ -104,7 +104,9 @@ export default function Login() {
                   </div>
                   <input
                     className="w-full border border-white/10 bg-slate-900/50 px-4 py-3.5 pl-11 text-sm text-white outline-none transition-all placeholder:text-slate-600 focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-500/10 rounded-xl"
-                    type="email"
+                    type="text"
+                    inputMode="email"
+                    autoComplete="email"
                     value={form.email}
                     onChange={(event) => setForm({ ...form, email: event.target.value })}
                     placeholder="you@example.com"

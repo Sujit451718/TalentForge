@@ -151,9 +151,19 @@ def upload_resume(current_user_id):
 @user_bp.route('/chatbot', methods=['POST'])
 @token_required
 def chatbot(current_user_id):
+    user_id = to_object_id(current_user_id)
+    user = users_collection.find_one({"_id": user_id}) or {}
+    latest_interview = interviews_collection.find_one({"user_id": user_id}, sort=[("created_at", -1)])
     data = request.get_json(silent=True) or {}
     message = data.get("message", "")
-    return format_response({"reply": chatbot_reply(message)})
+    context = {
+        "user_name": user.get("name"),
+        "plan_type": user.get("plan_type", "free"),
+        "latest_interview_role": latest_interview.get("role") if latest_interview else None,
+        "latest_interview_score": latest_interview.get("score") if latest_interview else None,
+        "latest_interview_summary": latest_interview.get("summary") if latest_interview else None,
+    }
+    return format_response({"reply": chatbot_reply(message, context=context)})
 
 
 @user_bp.route('/analytics', methods=['GET'])
@@ -361,23 +371,32 @@ def check_ats_score(current_user_id):
 @token_required
 def get_leaderboard(current_user_id):
     # Get top users based on total quiz score
-    pipeline = [
-        {
-            "$group": {
-                "_id": "$user_id",
-                "total_score": {"$sum": {"$multiply": ["$correct_answers", 100]}} # 100 base pts per correct
-            }
-        },
-        {
-            "$sort": {"total_score": -1}
-        },
-        {
-            "$limit": 10
-        }
-    ]
-    
     try:
-        leaderboard_data = list(quiz_attempts_collection.aggregate(pipeline))
+        if hasattr(quiz_attempts_collection, "aggregate"):
+            pipeline = [
+                {
+                    "$group": {
+                        "_id": "$user_id",
+                        "total_score": {"$sum": {"$multiply": ["$correct_answers", 100]}} # 100 base pts per correct
+                    }
+                },
+                {
+                    "$sort": {"total_score": -1}
+                },
+                {
+                    "$limit": 10
+                }
+            ]
+            leaderboard_data = list(quiz_attempts_collection.aggregate(pipeline))
+        else:
+            totals = {}
+            for attempt in quiz_attempts_collection.find({}):
+                user_id = attempt.get("user_id")
+                totals[user_id] = totals.get(user_id, 0) + (attempt.get("correct_answers", 0) * 100)
+            leaderboard_data = [
+                {"_id": user_id, "total_score": total_score}
+                for user_id, total_score in sorted(totals.items(), key=lambda item: item[1], reverse=True)[:10]
+            ]
         results = []
         for rank, item in enumerate(leaderboard_data, start=1):
             user = users_collection.find_one({"_id": item["_id"]})

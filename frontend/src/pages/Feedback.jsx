@@ -1,4 +1,4 @@
-import { Download, Lightbulb, ShieldAlert, Sparkles, Target } from 'lucide-react';
+import { BrainCircuit, Download, Lightbulb, ShieldAlert, Sparkles, Target, TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import Spinner from '../components/Spinner.jsx';
@@ -54,11 +54,11 @@ export default function Feedback() {
             <Sparkles className="h-4 w-4" /> Performance Analysis
           </p>
           <h1 className="mt-2 text-4xl font-black text-white sm:text-5xl text-glow">Interview Feedback</h1>
-          <p className="mt-3 text-lg text-slate-400">Deep dive into your score, strengths, and areas for growth.</p>
+          <p className="mt-3 text-lg text-slate-400">Deep dive into your score, strengths, progress, and areas for growth.</p>
         </div>
         <button className="gradient-button group h-12" type="button" onClick={downloadReport} disabled={!data}>
           <Download className="h-5 w-5 transition-transform group-hover:-translate-y-1" />
-          Download PDF Report
+          Download JSON Report
         </button>
       </div>
 
@@ -139,6 +139,12 @@ export default function Feedback() {
               <h2 className="text-2xl font-black text-white mb-8 flex items-center gap-3">
                 <BrainCircuit className="h-6 w-6 text-violet-400" /> Executive Summary
               </h2>
+              {data.summary.overall_feedback && (
+                <div className="mb-6 rounded-2xl border border-white/5 bg-slate-900/50 p-5">
+                  <p className="label mb-3 text-violet-300">Panel Feedback</p>
+                  <p className="text-sm font-medium leading-relaxed text-slate-300">{data.summary.overall_feedback}</p>
+                </div>
+              )}
               <div className="grid gap-6 md:grid-cols-3">
                 <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 hover:border-emerald-500/30 transition-colors group">
                   <p className="font-black text-emerald-400 mb-4 flex items-center gap-2 text-lg">
@@ -189,13 +195,34 @@ export default function Feedback() {
                   </ul>
                 </div>
               </div>
+              <div className="mt-6 grid gap-4 md:grid-cols-[1fr_260px]">
+                <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5">
+                  <p className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-widest text-cyan-300">
+                    <TrendingUp className="h-4 w-4" /> Improvement From Last Interview
+                  </p>
+                  <p className="text-sm font-medium leading-relaxed text-slate-300">
+                    {data.summary.improvement_from_last_interview || data.analytics?.comparison?.message || 'Complete another interview to compare improvement.'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/5 bg-slate-900/50 p-5">
+                  <p className="label mb-2">Hiring Signal</p>
+                  <p className="text-xl font-black capitalize text-white">
+                    {(data.summary.hiring_recommendation || (data.summary.is_selected ? 'proceed' : 'hold')).replace('_', ' ')}
+                  </p>
+                  {data.analytics?.comparison?.has_previous && (
+                    <p className={`mt-2 text-sm font-bold ${data.analytics.comparison.score_delta >= 0 ? 'text-emerald-400' : 'text-pink-400'}`}>
+                      {data.analytics.comparison.score_delta >= 0 ? '+' : ''}{data.analytics.comparison.score_delta} pts
+                    </p>
+                  )}
+                </div>
+              </div>
             </section>
           )}
 
           {/* Question Breakdown */}
           <section className="space-y-8 mt-12">
             <h2 className="text-3xl font-black text-white mb-6">Question Breakdown</h2>
-            {data.questions.map((item, index) => (
+            {(data.questions || []).map((item, index) => (
               <article key={item.id || index} className="glass-panel animated-card p-8 slide-in-up" style={{ animationDelay: `${index * 100}ms` }}>
                 <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-start bg-slate-900/40 p-6 rounded-2xl border border-white/5">
                   <div className="flex-1">
