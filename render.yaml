@@ -14,7 +14,7 @@ services:
       - key: GOOGLE_API_KEY
         sync: false
       - key: FRONTEND_URL
-        value: https://talentfroge.vercel.app
+        value: https://talentforge.vercel.app
       - key: JWT_EXPIRATION_HOURS
         value: "24"
       - key: FREE_DAILY_LIMIT

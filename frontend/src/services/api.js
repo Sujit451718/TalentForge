@@ -1,8 +1,12 @@
 import axios from 'axios';
 
 const browserHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const isLocalHost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(browserHost);
+const productionApiUrl = 'https://talentforge-backend.onrender.com/api';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${browserHost || 'localhost'}:5000/api`;
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (isLocalHost ? `http://${browserHost || 'localhost'}:5000/api` : productionApiUrl);
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
