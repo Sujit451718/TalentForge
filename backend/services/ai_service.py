@@ -495,14 +495,28 @@ def generate_quiz_questions(topic="software engineering", count=10):
     model = get_llm_model() if get_llm_model else None
     
     if model:
+        # Extract difficulty from topic string if present (e.g., "React (Difficulty: Hard)")
+        difficulty_match = re.search(r"\(Difficulty:\s*(.*?)\)", topic)
+        difficulty = difficulty_match.group(1) if difficulty_match else "Medium"
+        clean_topic = re.sub(r"\(Difficulty:.*?\)", "", topic).strip()
+
         prompt = f"""
-        You are an expert technical examiner. Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions on the topic of '{topic}'.
+        You are an expert technical examiner for a high-stakes 'Battle Arena' quiz. 
+        Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions.
+        
+        TOPIC: {clean_topic}
+        DIFFICULTY LEVEL: {difficulty}
         
         CRITICAL GUIDELINES:
-        1. Questions MUST be deeply technical and strictly related to '{topic}'.
-        2. Start with easy fundamental questions and progressively increase difficulty to advanced/expert levels. 
+        1. Questions MUST be deeply technical and strictly related to '{clean_topic}'.
+        2. Adjust complexity to exactly match the '{difficulty}' level:
+           - Easy: Fundamentals and core syntax.
+           - Medium: Practical implementation and common patterns.
+           - Hard: Architecture, edge cases, and performance optimization.
+           - Expert: Deep internals, rare scenarios, and advanced system design.
         3. Ensure options are plausible but only one is clearly correct.
-        4. Random Seed for uniqueness: {random.randint(10000, 99999)}.
+        4. Focus on professional, industry-standard knowledge.
+        5. Random Seed for uniqueness: {random.randint(10000, 99999)}.
 
         Return ONLY a strict JSON array with this schema:
         [
@@ -516,7 +530,7 @@ def generate_quiz_questions(topic="software engineering", count=10):
         Rules:
         - Exactly 4 options per question
         - answer_index must be between 0 and 3
-        - No markdown formatting
+        - No markdown formatting like ```json, no extra commentary
         """
         try:
             response = model.generate_content(prompt)
