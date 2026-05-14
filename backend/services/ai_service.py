@@ -1,15 +1,57 @@
 import re
 import random
+import datetime
 from collections import Counter
 
 try:
-    from services.llm_service import get_ai_evaluation, get_llm_model, generate_questions_from_resume as ai_generate_questions_from_resume, extract_json
+    from services.db_service import get_collection
+except Exception as e:
+    print(f"Error importing db_service: {e}")
+    get_collection = None
+
+def _save_to_question_bank(questions, domain, category):
+    if not get_collection: return
+    try:
+        bank = get_collection("question_bank")
+        for q in questions:
+            q_copy = q.copy()
+            if "_id" in q_copy: del q_copy["_id"]
+            q_copy["bank_category"] = category
+            q_copy["domain"] = domain.lower()
+            q_copy["created_at"] = datetime.datetime.utcnow()
+            bank.update_one(
+                {"question": q["question"], "domain": q_copy["domain"]},
+                {"$set": q_copy},
+                upsert=True
+            )
+    except Exception as e:
+        print(f"Error saving to question bank: {e}")
+
+def _get_from_question_bank(domain, category, limit=5):
+    if not get_collection: return []
+    try:
+        bank = get_collection("question_bank")
+        docs = list(bank.find({
+            "bank_category": category,
+            "domain": domain.lower()
+        }).limit(limit))
+        # Remove MongoDB internal IDs before returning
+        for doc in docs:
+            if "_id" in doc: del doc["_id"]
+        return docs
+    except Exception as e:
+        print(f"Error fetching from question bank: {e}")
+        return []
+
+try:
+    from services.llm_service import get_ai_evaluation, get_llm_model, generate_questions_from_resume as ai_generate_questions_from_resume, extract_json, chatbot_reply_ai
 except Exception as e:
     print(f"Error importing llm_service functions: {e}")
     get_ai_evaluation = None
     get_llm_model = None
     ai_generate_questions_from_resume = None
     extract_json = None
+    chatbot_reply_ai = None
 
 STOP_WORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has",
@@ -220,15 +262,13 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
     if model and not (use_resume and resume_questions):
         import uuid
         prompt = f"""
-        You are an elite technical interviewer. Generate {limit} highly unique, challenging, and STICKLY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
+        You are an elite technical interviewer. Generate {limit} highly unique, challenging, and STRICTLY DOMAIN-SPECIFIC interview questions for a {level} level {role} position.
         
         CRITICAL GUIDELINES:
         1. The questions MUST be deeply technical and specific to the '{role}' domain.
-        2. DO NOT ask generic behavioral or general software engineering questions if '{role}' is a specialized field (like Data Science or Frontend).
-        3. Start with a solid fundamental technical question and progressively advance to high-level architecture or complex problem-solving.
-        4. Each question should be completely different from typical common questions.
-        5. Provide a 'context' explaining why this specific technical concept is crucial for a {role}.
-        6. Random Seed for uniqueness: {uuid.uuid4()}
+        2. DO NOT ask generic behavioral or general software engineering questions if '{role}' is a specialized field.
+        3. Provide a 'context' explaining why this specific technical concept is crucial for a {role}.
+        4. Random Seed for uniqueness: {uuid.uuid4()}
 
         Return a strict JSON array with this schema:
         [
@@ -244,6 +284,12 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
             text = response.text.strip()
             import json
             
+            # Robust JSON cleaning
+            if "```" in text:
+                text = text.split("```")[1]
+                if text.startswith("json"): text = text[4:]
+                text = text.split("```")[0]
+            
             start_idx = text.find('[')
             end_idx = text.rfind(']')
             if start_idx != -1 and end_idx != -1:
@@ -252,15 +298,24 @@ def generate_interview_questions(role, experience_level, plan_type="free", resum
                 clean_text = text
                 
             items = json.loads(clean_text)
+            llm_questions = []
             for item in items[:limit]:
-                questions.append({
+                llm_questions.append({
                     "question": item.get("question"),
                     "context": item.get("context"),
                     "expected_keywords": item.get("expected_keywords", [])
                 })
-            return questions
-        except Exception:
-            pass # fallback to hardcoded if LLM fails
+            
+            if llm_questions:
+                _save_to_question_bank(llm_questions, role, "interview")
+                questions.extend(llm_questions)
+                return questions
+        except Exception as e:
+            print(f"LLM Interview Generation Error: {e}")
+            db_questions = _get_from_question_bank(role, "interview", limit)
+            if db_questions:
+                questions.extend(db_questions)
+                return questions
 
     for item in selected[:limit]:
         questions.append({
@@ -364,6 +419,9 @@ def generate_questions_from_resume(resume_text):
 
 
 def chatbot_reply(message):
+    if chatbot_reply_ai:
+        return chatbot_reply_ai(message)
+        
     text = (message or "").strip().lower()
     if not text:
         return "Share your question and I will help with interview prep, resume tips, or ATS guidance."
@@ -435,80 +493,77 @@ def generate_quiz_questions(topic="software engineering", count=10):
     fallback = fallback_bank[: max(10, count)]
 
     model = get_llm_model() if get_llm_model else None
-    if not model:
-        return fallback
-
-    prompt = f"""
-    You are an expert technical examiner. Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions on the topic of '{topic}'.
     
-    CRITICAL GUIDELINES:
-    1. Questions MUST be deeply technical and strictly related to '{topic}'.
-    2. Start with easy fundamental questions and progressively increase difficulty to advanced/expert levels. 
-    3. Ensure options are plausible but only one is clearly correct.
-    4. Avoid generic "What is X?" questions; prefer scenario-based or deep conceptual probes.
-    5. Random Seed for uniqueness: {random.randint(10000, 99999)}.
-
-    Return ONLY a strict JSON array with this schema:
-    [
-      {{
-        "question": "Deeply technical question text",
-        "options": ["Plausible Option 1", "Plausible Option 2", "Plausible Option 3", "Plausible Option 4"],
-        "answer_index": 0
-      }}
-    ]
-    
-    Rules:
-    - Exactly 4 options per question
-    - answer_index must be between 0 and 3
-    - No markdown formatting like ```json, no extra commentary
-    """
-    try:
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        import json
+    if model:
+        prompt = f"""
+        You are an expert technical examiner. Generate {max(10, count)} highly diverse, non-repetitive, and EXTREMELY DOMAIN-SPECIFIC multiple-choice quiz questions on the topic of '{topic}'.
         
-        # More robust JSON cleaning
-        if "```" in text:
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-            text = text.split("```")[0]
+        CRITICAL GUIDELINES:
+        1. Questions MUST be deeply technical and strictly related to '{topic}'.
+        2. Start with easy fundamental questions and progressively increase difficulty to advanced/expert levels. 
+        3. Ensure options are plausible but only one is clearly correct.
+        4. Random Seed for uniqueness: {random.randint(10000, 99999)}.
+
+        Return ONLY a strict JSON array with this schema:
+        [
+          {{
+            "question": "Deeply technical question text",
+            "options": ["Plausible Option 1", "Plausible Option 2", "Plausible Option 3", "Plausible Option 4"],
+            "answer_index": 0
+          }}
+        ]
         
-        start_idx = text.find('[')
-        end_idx = text.rfind(']')
-        if start_idx != -1 and end_idx != -1:
-            clean_text = text[start_idx:end_idx+1]
-        else:
-            clean_text = text
+        Rules:
+        - Exactly 4 options per question
+        - answer_index must be between 0 and 3
+        - No markdown formatting
+        """
+        try:
+            response = model.generate_content(prompt)
+            text = response.text.strip()
+            import json
             
-        items = json.loads(clean_text)
-        cleaned = []
-        for item in items:
-            options = item.get("options", [])[:4]
-            if len(options) < 2: # At least 2 options required
-                continue
+            if "```" in text:
+                text = text.split("```")[1]
+                if text.startswith("json"): text = text[4:]
+                text = text.split("```")[0]
             
-            # Ensure 4 options if possible
-            while len(options) < 4:
-                options.append("N/A")
-
-            try:
-                answer_index = int(item.get("answer_index", 0))
-            except (ValueError, TypeError):
-                answer_index = 0
-
-            if answer_index < 0 or answer_index >= len(options):
-                answer_index = 0
+            start_idx = text.find('[')
+            end_idx = text.rfind(']')
+            if start_idx != -1 and end_idx != -1:
+                clean_text = text[start_idx:end_idx+1]
+            else:
+                clean_text = text
                 
-            cleaned.append(
-                {
+            items = json.loads(clean_text)
+            cleaned = []
+            for item in items:
+                options = item.get("options", [])[:4]
+                if len(options) < 2: continue
+                while len(options) < 4: options.append("N/A")
+
+                try:
+                    answer_index = int(item.get("answer_index", 0))
+                except:
+                    answer_index = 0
+
+                if answer_index < 0 or answer_index >= len(options):
+                    answer_index = 0
+                    
+                cleaned.append({
                     "question": (item.get("question") or "Quiz question").strip(),
                     "options": options,
                     "answer_index": answer_index,
-                }
-            )
-        return cleaned[:count] if len(cleaned) >= 5 else fallback
-    except Exception as e:
-        print(f"Quiz Generation Error: {e}")
-        return fallback
+                })
+            
+            if len(cleaned) >= 5:
+                _save_to_question_bank(cleaned, topic, "quiz")
+                return cleaned[:count]
+        except Exception as e:
+            print(f"Quiz Generation Error: {e}")
+            db_questions = _get_from_question_bank(topic, "quiz", count)
+            if db_questions:
+                return db_questions
+
+    return fallback
 

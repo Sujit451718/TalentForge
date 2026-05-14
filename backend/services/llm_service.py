@@ -94,7 +94,7 @@ def get_ai_evaluation(question, answer):
         "strengths": ["Identify 2-3 specific technical strengths found in the answer"],
         "weaknesses": ["Identify 2-3 specific technical gaps or areas needing more detail"],
         "suggested_answer": "An ideal suggested answer incorporating the missing points",
-        "jarvis_response": "A short, conversational and encouraging reply addressing the user directly (1-2 sentences)"
+        "jarvis_response": "A short, highly conversational and encouraging reply addressing the user directly, as if you are a friendly interviewer sitting across from them (1-2 sentences)"
     }}
     
     Rules:
